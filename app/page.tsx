@@ -1,65 +1,222 @@
-import Image from "next/image";
+// app/page.tsx
+"use client";
+
+import { useState, useEffect } from "react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { WelcomeScreen } from "@/components/WelcomeScreen";
+import { SlotMachine } from "@/components/slot-machine/SlotMachine";
+import { ResultScreen } from "@/components/ResultScreen";
+import { GlobalPotScreen } from "@/components/GlobalPotScreen";
+import { Header } from "@/components/Header";
+import { GameResult, Bar, SymbolType } from "@/types/game";
+import {
+  simulateSpin,
+  generateSlotResult,
+  DEFAULT_SYMBOLS,
+  formatCurrency,
+} from "@/lib/game-logic";
+import { cn } from "@/lib/utils";
+
+type GameScreen = "welcome" | "playing-free" | "result" | "playing-global";
 
 export default function Home() {
+  // Estado de autenticación desde Zustand
+  const { user, isAuthenticated, logout } = useAuthStore();
+
+  // Estado del juego
+  const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [currentSymbols, setCurrentSymbols] = useState<SymbolType[]>(
+    generateSlotResult(DEFAULT_SYMBOLS),
+  );
+  const [gameResult, setGameResult] = useState<GameResult | null>(null);
+  const [freeSpinsAvailable, setFreeSpinsAvailable] = useState(3);
+
+  // Estado del bar (simulado)
+  const [bar] = useState<Bar>({
+    id: "mariscal",
+    name: "El Mariscal",
+    slug: "el-mariscal",
+    location: "Asunción",
+    freeSpinsPerDay: 3,
+    distribution: {
+      bar: 50,
+      pot: 30,
+      company: 20,
+    },
+    isActive: true,
+  });
+
+  // Pozo global
+  const [potAmount, setPotAmount] = useState(32000); // Gs. 32.000
+  const spinCost = 2000; // Gs. 2.000
+
+  // Usuario para el juego (combina datos de auth store con datos del juego)
+  const gameUser = {
+    id: user?.id || "guest",
+    isAuthenticated,
+    balance: user?.balance || 0,
+    freeSpinsUsed: 3 - freeSpinsAvailable,
+    freeSpinsAvailable,
+    name: user?.name || undefined,
+    email: user?.email || undefined,
+  };
+
+  // Handlers
+  const handleProfileClick = () => {
+    alert("Mi Perfil - Por implementar");
+  };
+
+  const handlePrizesClick = () => {
+    alert("Mis Premios - Por implementar");
+  };
+
+  const handleHistoryClick = () => {
+    alert("Historial - Por implementar");
+  };
+
+  const handlePlayFree = async () => {
+    if (freeSpinsAvailable <= 0) {
+      alert("No tienes jugadas gratuitas disponibles");
+      return;
+    }
+
+    setCurrentScreen("playing-free");
+    setIsSpinning(true);
+
+    const result = await simulateSpin(
+      "free",
+      gameUser.balance,
+      potAmount,
+      spinCost,
+    );
+
+    setCurrentSymbols(result.symbols);
+    setFreeSpinsAvailable((prev) => prev - 1);
+  };
+
+  const handleSpinComplete = (symbols: SymbolType[]) => {
+    setIsSpinning(false);
+
+    setTimeout(async () => {
+      const result = await simulateSpin(
+        "free",
+        gameUser.balance,
+        potAmount,
+        spinCost,
+      );
+      setGameResult(result);
+      setPotAmount(result.newPotAmount);
+      setCurrentScreen("result");
+    }, 500);
+  };
+
+  const handlePlayGlobalPot = () => {
+    if (!isAuthenticated) {
+      window.location.href = `/play/${bar.slug}/auth`;
+      return;
+    }
+
+    if ((user?.balance || 0) < spinCost) {
+      alert("Saldo insuficiente");
+      return;
+    }
+
+    setCurrentScreen("playing-global");
+  };
+
+  const handleGlobalPotResult = (result: GameResult) => {
+    setGameResult(result);
+    setPotAmount(result.newPotAmount);
+    setCurrentScreen("result");
+  };
+
+  const handleBackToHome = () => {
+    setCurrentScreen("welcome");
+    setGameResult(null);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setCurrentScreen("welcome");
+  };
+
+  // Renderizar pantalla actual
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case "welcome":
+        return (
+          <WelcomeScreen
+            bar={bar}
+            freeSpinsAvailable={freeSpinsAvailable}
+            onPlayClick={handlePlayFree}
+          />
+        );
+
+      case "playing-free":
+        return (
+          <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
+
+              {/* Slot Machine */}
+              <SlotMachine
+                result={currentSymbols}
+                isSpinning={isSpinning}
+                onSpinComplete={handleSpinComplete}
+              />
+
+
+            {/* Decoraciones */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden">
+              <div className="absolute top-20 left-10 w-32 h-32 bg-yellow-400/10 rounded-full blur-3xl shimmer" />
+              <div className="absolute bottom-20 right-10 w-40 h-40 bg-green-400/10 rounded-full blur-3xl shimmer" />
+            </div>
+          </div>
+        );
+
+      case "result":
+        return gameResult ? (
+          <ResultScreen
+            result={gameResult}
+            user={gameUser}
+            spinCost={spinCost}
+            onPlayGlobalPot={handlePlayGlobalPot}
+            onLoadBalance={() =>
+              alert("Función de carga de saldo - integrar con QR del mozo")
+            }
+            onBackToHome={handleBackToHome}
+          />
+        ) : null;
+
+      case "playing-global":
+        return (
+          <GlobalPotScreen
+            user={gameUser}
+            potAmount={potAmount}
+            spinCost={spinCost}
+            onResult={handleGlobalPotResult}
+            onBack={handleBackToHome}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <>
+      {/* Header */}
+      {isAuthenticated && user && (
+        <Header
+          onProfileClick={handleProfileClick}
+          onPrizesClick={handlePrizesClick}
+          onHistoryClick={handleHistoryClick}
+          onLogout={handleLogout}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      )}
+
+      {/* Contenido principal */}
+      <div className={isAuthenticated ? "pt-16" : ""}>{renderScreen()}</div>
+    </>
   );
 }
