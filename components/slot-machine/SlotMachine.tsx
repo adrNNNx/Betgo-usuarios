@@ -1,58 +1,74 @@
-// components/slot-machine/slot-machine.tsx
+// components/slot-machine/SlotMachine.tsx
 "use client";
 
 import { useCallback, useEffect, useState, useRef } from "react";
 
 import { useSlotDimensions } from "@/hooks/use-slot-dimensions";
-import { useBarSymbols } from "@/hooks/use-bar-symbols";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 import { getRandomSymbol, checkWin } from "./symbols";
-
-import {
-  SlotMachineConfig,
-  SpinState,
-  SlotSymbol,
-} from "@/types/slot-machine-type";
-
+import { SlotMachineConfig, SpinState, SlotSymbol } from "@/types/slot-machine-type";
 import { JackpotDisplay } from "./JackpotDisplay";
 import { SlotReel } from "./SlotReel";
 
 interface SlotMachineProps {
   config?: Partial<SlotMachineConfig>;
-  barSlug?: string | null;
+  /** Símbolos disponibles (del hook useBarSymbols) */
+  symbols: SlotSymbol[];
+  /** Si los símbolos están cargando */
+  symbolsLoading?: boolean;
+  /** Si usa símbolos custom del bar */
+  usingCustomSymbols?: boolean;
+  /** Jugadas gratuitas restantes */
+  freeSpinsRemaining: number;
+  /**
+   * Callback cuando el usuario quiere girar.
+   * El padre debe llamar a la API y luego setear serverResults.
+   */
+  onRequestSpin?: () => void;
+  /**
+   * Resultado del servidor: los 5 símbolos finales.
+   * Cuando se setea, la máquina arranca la animación y para en estos símbolos.
+   */
+  serverResults?: SlotSymbol[] | null;
+  /** Info del resultado del servidor */
+  serverResultInfo?: {
+    isWinner: boolean;
+    prize?: { name: string; value?: number } | null;
+  } | null;
+  /** Callback cuando termina toda la animación */
+  onAnimationComplete?: () => void;
+  /** Si hay un error del servidor */
+  serverError?: string | null;
 }
 
-export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
+export function SlotMachine({
+  config = {},
+  symbols,
+  symbolsLoading = false,
+  usingCustomSymbols = false,
+  freeSpinsRemaining,
+  onRequestSpin,
+  serverResults = null,
+  serverResultInfo = null,
+  onAnimationComplete,
+  serverError = null,
+}: SlotMachineProps) {
   const {
     reelCount = 5,
-    symbols: customSymbols,
-    title = "EL MARISCAL",
-    subtitle = "BARRA & CERVEZA",
+    title = "BetGO",
+    subtitle = "",
     barLogoUrl = null,
-    jackpotAmount = 32000,
+    jackpotAmount = 0,
     currency = "Gs.",
-    freeSpins = 3,
     spinDuration = 2000,
-    onSpinComplete,
-    onSpinStart,
     canSpin = true,
   } = config;
 
   const dims = useSlotDimensions();
 
-  const {
-    symbols: barSymbols,
-    loading: symbolsLoading,
-    usingCustomSymbols,
-  } = useBarSymbols(barSlug);
-
-  const symbols = customSymbols || barSymbols;
-
   const [spinState, setSpinState] = useState<SpinState>("idle");
-  const [remainingSpins, setRemainingSpins] = useState(freeSpins);
-  const [currentJackpot, setCurrentJackpot] = useState(jackpotAmount);
   const [finalSymbols, setFinalSymbols] = useState<SlotSymbol[]>([]);
   const [results, setResults] = useState<SlotSymbol[]>([]);
   const [winInfo, setWinInfo] = useState<{
@@ -60,26 +76,52 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
     matchCount: number;
     symbol: SlotSymbol | null;
   } | null>(null);
-  const stoppedCount = useRef(0);
   const [showWin, setShowWin] = useState(false);
+  const stoppedCount = useRef(0);
+  const isWaitingForServer = useRef(false);
 
+  // ==================== MANEJAR RESULTADO DEL SERVIDOR ====================
+  useEffect(() => {
+    if (serverResults && serverResults.length > 0 && isWaitingForServer.current) {
+      isWaitingForServer.current = false;
+      setFinalSymbols(serverResults);
+      setSpinState("spinning");
+    }
+  }, [serverResults]);
+
+  // ==================== MANEJAR ERROR DEL SERVIDOR ====================
+  useEffect(() => {
+    if (serverError && isWaitingForServer.current) {
+      isWaitingForServer.current = false;
+      setSpinState("idle");
+    }
+  }, [serverError]);
+
+  // ==================== CLICK EN GIRAR ====================
   const handleSpin = useCallback(() => {
-    if (spinState !== "idle" || remainingSpins <= 0 || !canSpin) return;
+    if (spinState !== "idle" || freeSpinsRemaining <= 0 || !canSpin) return;
 
     setShowWin(false);
     setWinInfo(null);
     stoppedCount.current = 0;
-
-    const newFinals = Array.from({ length: reelCount }, () =>
-      getRandomSymbol(symbols),
-    );
-    setFinalSymbols(newFinals);
     setResults([]);
-    setSpinState("spinning");
-    setRemainingSpins((prev) => prev - 1);
-    onSpinStart?.();
-  }, [spinState, remainingSpins, canSpin, reelCount, symbols, onSpinStart]);
 
+    if (onRequestSpin) {
+      // Modo servidor: pedir al padre que llame a la API
+      isWaitingForServer.current = true;
+      setSpinState("spinning");
+      onRequestSpin();
+    } else {
+      // Modo local (fallback): generar resultado localmente
+      const newFinals = Array.from({ length: reelCount }, () =>
+        getRandomSymbol(symbols)
+      );
+      setFinalSymbols(newFinals);
+      setSpinState("spinning");
+    }
+  }, [spinState, freeSpinsRemaining, canSpin, reelCount, symbols, onRequestSpin]);
+
+  // ==================== CUANDO UN REEL PARA ====================
   const handleReelStopped = useCallback(() => {
     stoppedCount.current += 1;
     if (stoppedCount.current >= reelCount) {
@@ -88,22 +130,43 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
     }
   }, [reelCount, finalSymbols]);
 
+  // ==================== EVALUAR RESULTADO ====================
   useEffect(() => {
     if (results.length === reelCount && results.length > 0) {
-      const win = checkWin(results);
-      setWinInfo(win);
-      if (win.isWin) {
-        setSpinState("won");
-        setShowWin(true);
-        const prize = (win.symbol?.multiplier || 1) * 1000 * win.matchCount;
-        setCurrentJackpot((prev) => prev + prize);
-        setTimeout(() => setSpinState("idle"), 3000);
-      }
-      onSpinComplete?.(results);
-    }
-  }, [results, reelCount, onSpinComplete]);
+      if (serverResultInfo) {
+        // Usar resultado del servidor
+        const matchSymbol = results[0];
+        const allMatch = results.every((s) => s.id === matchSymbol.id);
+        setWinInfo({
+          isWin: serverResultInfo.isWinner,
+          matchCount: allMatch ? reelCount : 0,
+          symbol: serverResultInfo.isWinner ? matchSymbol : null,
+        });
 
-  // Keyboard support
+        if (serverResultInfo.isWinner) {
+          setSpinState("won");
+          setShowWin(true);
+          setTimeout(() => {
+            setSpinState("idle");
+            onAnimationComplete?.();
+          }, 3000);
+        } else {
+          onAnimationComplete?.();
+        }
+      } else {
+        // Modo local
+        const win = checkWin(results);
+        setWinInfo(win);
+        if (win.isWin) {
+          setSpinState("won");
+          setShowWin(true);
+          setTimeout(() => setSpinState("idle"), 3000);
+        }
+      }
+    }
+  }, [results, reelCount, serverResultInfo, onAnimationComplete]);
+
+  // ==================== KEYBOARD ====================
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
@@ -116,7 +179,14 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
   }, [handleSpin]);
 
   const isSpinning = spinState === "spinning";
+  const isDisabled =
+    isSpinning ||
+    freeSpinsRemaining <= 0 ||
+    !canSpin ||
+    spinState === "won" ||
+    isWaitingForServer.current;
 
+  // ==================== LOADING ====================
   if (symbolsLoading) {
     return (
       <div className="flex w-full max-w-2xl flex-col items-center gap-6 px-3 sm:px-0">
@@ -130,6 +200,7 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
     );
   }
 
+  // ==================== RENDER ====================
   return (
     <>
       <div className="flex w-full max-w-2xl flex-col items-center gap-3 px-3 sm:gap-6 sm:px-0">
@@ -154,9 +225,11 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
                 <h1 className="text-base font-black uppercase tracking-wider sm:text-xl text-primary font-display">
                   {title}
                 </h1>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] sm:text-xs text-muted-foreground">
-                  {subtitle}
-                </p>
+                {subtitle && (
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] sm:text-xs text-muted-foreground">
+                    {subtitle}
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -164,9 +237,11 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
               <h1 className="text-base font-black uppercase tracking-wider sm:text-xl text-primary font-display">
                 {title}
               </h1>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] sm:text-xs text-muted-foreground">
-                {subtitle}
-              </p>
+              {subtitle && (
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] sm:text-xs text-muted-foreground">
+                  {subtitle}
+                </p>
+              )}
             </div>
           )}
 
@@ -178,13 +253,15 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
         </div>
 
         {/* Jackpot Display */}
-        <div className="animate-fade-in-up animation-delay-100">
-          <JackpotDisplay
-            amount={currentJackpot}
-            currency={currency}
-            isAnimating={showWin}
-          />
-        </div>
+        {jackpotAmount > 0 && (
+          <div className="animate-fade-in-up animation-delay-100">
+            <JackpotDisplay
+              amount={jackpotAmount}
+              currency={currency}
+              isAnimating={showWin}
+            />
+          </div>
+        )}
 
         {/* Machine body */}
         <div className="relative w-full animate-fade-in-up animation-delay-200">
@@ -303,9 +380,7 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
         {/* Spin Button */}
         <Button
           onClick={handleSpin}
-          disabled={
-            isSpinning || remainingSpins <= 0 || !canSpin || spinState === "won"
-          }
+          disabled={isDisabled}
           size="lg"
           className="mt-1 w-full max-w-xs uppercase font-black tracking-wider sm:mt-2 sm:w-auto sm:px-12 sm:py-6 text-base sm:text-lg relative overflow-hidden group animate-fade-in-up animation-delay-300"
         >
@@ -316,11 +391,12 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
             </span>
           ) : spinState === "won" ? (
             "¡Ganaste!"
+          ) : freeSpinsRemaining <= 0 ? (
+            "Sin jugadas"
           ) : (
             "Girar"
           )}
-          {/* Shimmer effect */}
-          {!isSpinning && (
+          {!isSpinning && freeSpinsRemaining > 0 && (
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer pointer-events-none" />
           )}
         </Button>
@@ -329,7 +405,7 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
         <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-6 animate-fade-in-up animation-delay-400">
           <p className="text-xs sm:text-sm text-muted-foreground">
             Jugadas gratuitas restantes:{" "}
-            <span className="font-bold text-primary">{remainingSpins}</span>
+            <span className="font-bold text-primary">{freeSpinsRemaining}</span>
           </p>
           <p className="hidden text-xs sm:block text-muted-foreground/60">
             Presiona{" "}
@@ -365,22 +441,28 @@ export function SlotMachine({ config = {}, barSlug = null }: SlotMachineProps) {
             }}
           >
             <div className="text-5xl sm:text-6xl animate-bounce-subtle">
-              {winInfo.symbol?.content}
+              {winInfo.symbol?.content || "🎰"}
             </div>
             <h2 className="mt-3 text-2xl font-black uppercase sm:mt-4 sm:text-3xl text-primary font-display">
               ¡Ganaste!
             </h2>
-            <p className="mt-1 text-sm sm:mt-2 sm:text-lg text-muted-foreground">
-              {winInfo.matchCount} coincidencias de {winInfo.symbol?.label}
-            </p>
-            <p className="mt-1 text-xl font-bold sm:text-2xl text-primary font-display">
-              +{currency}{" "}
-              {(
-                (winInfo.symbol?.multiplier || 1) *
-                1000 *
-                winInfo.matchCount
-              ).toLocaleString("es-PY")}
-            </p>
+            {serverResultInfo?.prize ? (
+              <>
+                <p className="mt-1 text-sm sm:mt-2 sm:text-lg text-muted-foreground">
+                  {serverResultInfo.prize.name}
+                </p>
+                {serverResultInfo.prize.value && (
+                  <p className="mt-1 text-xl font-bold sm:text-2xl text-primary font-display">
+                    +{currency}{" "}
+                    {serverResultInfo.prize.value.toLocaleString("es-PY")}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1 text-sm sm:mt-2 sm:text-lg text-muted-foreground">
+                {winInfo.matchCount} coincidencias de {winInfo.symbol?.label}
+              </p>
+            )}
           </div>
         </div>
       )}

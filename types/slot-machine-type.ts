@@ -1,34 +1,38 @@
-// components/slot-machine/types.ts
+// types/slot-machine-type.ts
 
 export interface SlotSymbol {
   id: string;
   label: string;
-  /** The emoji, image URL, or React node to display */
+  /** Emoji, image URL, or React node to display */
   content: string;
-  /** Optional multiplier value for this symbol */
+  /** Multiplier value for this symbol */
   multiplier?: number;
+  /** Probability weight (from backend). Higher = more frequent */
+  weight?: number;
+  /** Whether this is a global symbol (shared across all bars) */
+  isGlobal?: boolean;
 }
 
 export interface SlotMachineConfig {
-  /** Number of reels to display (default: 5) */
+  /** Number of reels (default: 5) */
   reelCount: number;
-  /** Symbols that appear in the reels */
+  /** Symbols available in the reels */
   symbols: SlotSymbol[];
   /** Title displayed above the machine */
   title: string;
   /** Subtitle displayed below the title */
   subtitle: string;
-  /** Bar logo URL (optional) - if provided, shows logo instead of just title */
+  /** Bar logo URL */
   barLogoUrl?: string | null;
   /** Current jackpot/pool amount */
   jackpotAmount: number;
-  /** Currency label (e.g., "Gs.") */
+  /** Currency label */
   currency: string;
   /** Free spins remaining */
   freeSpins: number;
-  /** Duration of spin animation in ms per reel (default: 2000) */
+  /** Duration of spin animation per reel in ms */
   spinDuration?: number;
-  /** Callback when spin completes with final symbols */
+  /** Callback when all reels stop */
   onSpinComplete?: (results: SlotSymbol[]) => void;
   /** Callback when spin starts */
   onSpinStart?: () => void;

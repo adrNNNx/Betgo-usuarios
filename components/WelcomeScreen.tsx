@@ -101,7 +101,7 @@ export function WelcomeScreen({
           <div className="flex items-stretch justify-center gap-px">
             <FeaturePill
               icon={<Dices className="h-4 w-4" />}
-              value={`${freeSpinsAvailable}`}
+              value={`${bar.freeSpinsPerDay}`}
               label="Jugadas gratis"
             />
             <div className="w-px self-stretch bg-border/30 mx-1 sm:mx-3" />

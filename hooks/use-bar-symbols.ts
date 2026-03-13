@@ -1,85 +1,87 @@
 // hooks/use-bar-symbols.ts
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import type { SlotSymbol } from "@/types/slot-machine-type";
 import { DEFAULT_SYMBOLS } from "@/components/slot-machine/symbols";
-import { api } from "@/lib/api";
+import { useBarSymbolsData } from "@/store/useGameStore";
+import type { BarSymbolResponse } from "@/services/game.service";
 
-interface BarSymbolResponse {
-  id: string;
-  name: string;
-  imageUrl: string;
-  hasPrize: boolean;
+/**
+ * Emojis por defecto como fallback si no hay imageUrl.
+ */
+const FALLBACK_EMOJIS = ["🔔", "🍇", "7️⃣", "🍊", "🍒", "💎", "⭐", "🍋"];
+
+/**
+ * Transforma un BarSymbolResponse del backend en un SlotSymbol para el slot machine.
+ */
+function toSlotSymbol(symbol: BarSymbolResponse, index: number): SlotSymbol {
+  return {
+    id: symbol.id,
+    label: symbol.name,
+    content: symbol.imageUrl || FALLBACK_EMOJIS[index % FALLBACK_EMOJIS.length],
+    multiplier: symbol.isJackpot ? 20 : symbol.hasPrize ? 10 : 2,
+    weight: symbol.weight,
+    isGlobal: symbol.isGlobal,
+  };
 }
 
 /**
- * Hook para cargar símbolos del bar desde la API
- * Si el bar tiene símbolos configurados, los usa
- * Si no, usa los símbolos por defecto (emojis)
+ * Hook para obtener los símbolos del bar ya transformados a SlotSymbol.
+ *
+ * Los símbolos vienen del gameStore (cargados vía loadSymbols).
+ * Incluye los globales (sin bar_id) + los específicos del bar (con bar_id),
+ * todos ya filtrados por is_active=true en el backend.
+ *
+ * Si no hay símbolos cargados, retorna los DEFAULT_SYMBOLS (emojis).
  */
-export function useBarSymbols(barSlug: string | null) {
-  const [symbols, setSymbols] = useState<SlotSymbol[]>(DEFAULT_SYMBOLS);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [usingCustomSymbols, setUsingCustomSymbols] = useState(false);
+export function useBarSymbols() {
+  const rawSymbols = useBarSymbolsData();
 
-  useEffect(() => {
-    // Si no hay barSlug, usar símbolos por defecto
-    if (!barSlug) {
-      setSymbols(DEFAULT_SYMBOLS);
-      setLoading(false);
-      setUsingCustomSymbols(false);
-      return;
+  const { symbols, usingCustomSymbols, globalCount, barCount } = useMemo(() => {
+    if (!rawSymbols || rawSymbols.length === 0) {
+      return {
+        symbols: DEFAULT_SYMBOLS,
+        usingCustomSymbols: false,
+        globalCount: 0,
+        barCount: 0,
+      };
     }
 
-    const fetchBarSymbols = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    const transformed = rawSymbols.map((s, i) => toSlotSymbol(s, i));
+    const globalCount = rawSymbols.filter((s) => s.isGlobal).length;
+    const barCount = rawSymbols.filter((s) => !s.isGlobal).length;
 
-        const { data } = await api.get<BarSymbolResponse[]>(
-          `game/bar/${barSlug}/symbols`,
-        );
-
-        if (!data || data.length === 0) {
-          console.warn(
-            `El bar ${barSlug} no tiene símbolos configurados, usando símbolos por defecto`,
-          );
-          setSymbols(DEFAULT_SYMBOLS);
-          setUsingCustomSymbols(false);
-          return;
-        }
-
-        const transformedSymbols: SlotSymbol[] = data.map((symbol, index) => ({
-          id: symbol.id,
-          label: symbol.name,
-          content: symbol.imageUrl || getDefaultEmoji(index),
-          multiplier: symbol.hasPrize ? 10 : 2,
-        }));
-        setSymbols(transformedSymbols);
-        setUsingCustomSymbols(true);
-      } catch (err) {
-        console.error("Error al cargar símbolos del bar:", err);
-        setError(err instanceof Error ? err.message : "Error desconocido");
-        setSymbols(DEFAULT_SYMBOLS);
-        setUsingCustomSymbols(false);
-      } finally {
-        setLoading(false);
-      }
+    return {
+      symbols: transformed,
+      usingCustomSymbols: true,
+      globalCount,
+      barCount,
     };
+  }, [rawSymbols]);
 
-    fetchBarSymbols();
-  }, [barSlug]);
-
-  return { symbols, loading, error, usingCustomSymbols };
+  return { symbols, usingCustomSymbols, globalCount, barCount };
 }
 
 /**
- * Obtener emoji por defecto según el índice
- * Fallback en caso de que no haya imageUrl
+ * Helper para mapear symbolDetails del server result a SlotSymbol[].
+ * Busca cada símbolo por ID en el array de símbolos disponibles.
+ * Si no lo encuentra, crea un SlotSymbol temporal con la info del server.
  */
-function getDefaultEmoji(index: number): string {
-  const emojis = ["🔔", "🍇", "7️⃣", "🍊", "🍒", "💎", "⭐", "🍋"];
-  return emojis[index % emojis.length];
+export function mapServerResultToSlotSymbols(
+  symbolDetails: Array<{ id: string; name: string; imageUrl: string }>,
+  availableSymbols: SlotSymbol[]
+): SlotSymbol[] {
+  return symbolDetails.map((detail, index) => {
+    const found = availableSymbols.find((s) => s.id === detail.id);
+    if (found) return found;
+
+    // Fallback: crear SlotSymbol temporal con la data del server
+    return {
+      id: detail.id,
+      label: detail.name,
+      content: detail.imageUrl || FALLBACK_EMOJIS[index % FALLBACK_EMOJIS.length],
+      multiplier: 2,
+    };
+  });
 }

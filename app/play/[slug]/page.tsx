@@ -1,57 +1,28 @@
 // app/play/[slug]/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
-import { api } from "@/lib/api";
+import { useGameStore } from "@/store/useGameStore";
+import { getBarPublicInfo } from "@/services/game.service";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 // Componentes
 import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
-
 import { ResultScreen } from "@/components/ResultScreen";
 import { GlobalPotScreen } from "@/components/GlobalPotScreen";
-
-// Types
-import type { SymbolType, GameResult } from "@/types/game";
-import { formatCurrency } from "@/lib/game-logic";
-import { cn } from "@/lib/utils";
 import { SlotMachine } from "@/components/slot-machine";
 
-interface BarInfo {
-  id: string;
-  name: string;
-  slug: string;
-  address: string;
-  phone: string;
-  email: string;
-  logoUrl: string | null;
-  freeSpinsPerDay: number;
-  isActive: boolean;
-}
+// Hooks
+import { useBarSymbols, mapServerResultToSlotSymbols } from "@/hooks/use-bar-symbols";
 
-interface BarAccessData extends BarInfo {
-  freePlaysAvailable: number;
-  freePlaysUsed: number;
-  freePlaysTotal: number;
-}
-
-interface PlayResult {
-  result: {
-    symbols: string[];
-    hasWon: boolean;
-    prize: {
-      id: string;
-      name: string;
-      description: string;
-      value: number;
-    } | null;
-  };
-  freePlaysRemaining: number;
-}
+// Types
+import type { SlotSymbol } from "@/types/slot-machine-type";
+import type { GameResult, SymbolType } from "@/types/game";
+import { formatCurrency } from "@/lib/game-logic";
 
 type GameScreen = "welcome" | "playing-free" | "result" | "playing-global";
 
@@ -60,191 +31,143 @@ export default function BarGamePage() {
   const router = useRouter();
   const slug = params.slug as string;
 
-  // Auth
+  // Auth store
   const { user, isAuthenticated } = useAuthStore();
 
-  // Estados del bar
-  const [bar, setBar] = useState<BarAccessData | null>(null);
-  const [isLoadingBar, setIsLoadingBar] = useState(true);
-  const [barError, setBarError] = useState<string | null>(null);
+  // Game store
+  const {
+    bar,
+    session,
+    pool,
+    isLoadingBar,
+    barError,
+    isPlaying,
+    lastResult,
+    loadBar,
+    loadSymbols,
+    loadPool,
+    play,
+    clearResult,
+  } = useGameStore();
 
-  // Estados del juego
+  // Símbolos transformados para el slot machine
+  const { symbols, usingCustomSymbols } = useBarSymbols();
+
+  // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [currentSymbols, setCurrentSymbols] = useState<SymbolType[]>([]);
-  const [playResult, setPlayResult] = useState<PlayResult | null>(null);
+  const [serverResults, setServerResults] = useState<SlotSymbol[] | null>(null);
+  const [serverResultInfo, setServerResultInfo] = useState<{
+    isWinner: boolean;
+    prize?: { name: string; value?: number } | null;
+  } | null>(null);
+  const [spinError, setSpinError] = useState<string | null>(null);
 
-  // Pozo global
-  const [potAmount, setPotAmount] = useState(0);
-  const spinCost = 2000;
-
-  // ==================== CARGAR INFO PÚBLICA DEL BAR (Sin Auth) ====================
+  // ==================== CARGAR BAR AL MONTAR ====================
   useEffect(() => {
-    const loadPublicBarInfo = async () => {
-      try {
-        setIsLoadingBar(true);
-        setBarError(null);
+    if (!slug) return;
 
-        const { data } = await api.get(`/game/bar/${slug}/public`);
-
-        if (!isAuthenticated) {
-          sessionStorage.setItem("pendingBarInfo", JSON.stringify(data));
-          router.push(`/play/${slug}/auth`);
-          return;
+    const initBar = async () => {
+      if (!isAuthenticated) {
+        // Guardar info pública y redirigir al login
+        try {
+          const publicInfo = await getBarPublicInfo(slug);
+          sessionStorage.setItem("pendingBarInfo", JSON.stringify(publicInfo));
+        } catch {
+          // No pasa nada si falla
         }
+        router.push(`/play/${slug}/auth`);
+        return;
+      }
 
-        // Si está autenticado, cargar data completa
-        await loadAuthenticatedBarAccess();
+      try {
+        await Promise.all([loadBar(slug), loadSymbols(slug), loadPool()]);
       } catch (error: any) {
-        console.error("Error cargando bar:", error);
-        setBarError(
-          error.response?.data?.message || "Bar no encontrado o no disponible",
-        );
-        setIsLoadingBar(false);
+        // El error ya se maneja en el store
+        console.error("Error inicializando bar:", error);
       }
     };
 
-    if (slug) {
-      loadPublicBarInfo();
-    }
+    initBar();
   }, [slug, isAuthenticated]);
 
-  // ==================== CARGAR INFO COMPLETA DEL BAR (Con Auth) ====================
-  const loadAuthenticatedBarAccess = async () => {
-    try {
-      setIsLoadingBar(true);
+  // ==================== HANDLER: GIRAR (JUGADA GRATIS) ====================
+  const handleRequestSpin = useCallback(async () => {
+    if (!bar || !session) return;
 
-      const { data } = await api.get(`/game/bar/${slug}`);
-
-      setBar({
-        id: data.bar.id,
-        name: data.bar.name,
-        slug: data.bar.slug,
-        address: data.bar.address || "",
-        phone: data.bar.phone || "",
-        email: data.bar.email || "",
-        logoUrl: data.bar.logoUrl || null,
-        freeSpinsPerDay: data.bar.freeSpinsPerDay,
-        isActive: data.bar.isActive ?? true,
-        freePlaysAvailable: data.session.playsRemaining,
-        freePlaysUsed: data.session.playsUsed,
-        freePlaysTotal: data.session.playsLimit,
-      });
-
-      setPotAmount(data.globalPool?.currentAmount || 0);
-    } catch (error: any) {
-      console.error("Error accediendo al bar:", error);
-      setBarError(error.response?.data?.message || "Error al acceder al bar");
-    } finally {
-      setIsLoadingBar(false);
-    }
-  };
-
-  const loadGlobalPool = async () => {
-    try {
-      const { data } = await api.get("/game/pool/status");
-      setPotAmount(data.amount || 0);
-    } catch (error) {
-      console.error("Error cargando pozo:", error);
-    }
-  };
-
-  // ==================== HANDLER: JUGAR GRATIS ====================
-  const handlePlayFree = async () => {
-    if (!bar) return;
-
-    if (bar.freePlaysAvailable <= 0) {
-      toast.error("No tienes jugadas gratuitas disponibles en este bar");
-      return;
-    }
+    setSpinError(null);
 
     try {
-      setCurrentScreen("playing-free");
-      setIsSpinning(true);
+      const result = await play("free", slug);
 
-      // POST /game/play/free
-      const { data } = await api.post<PlayResult>("/game/play/free", {
-        barSlug: slug,
-      });
-
-      // Guardar resultado
-      setPlayResult(data);
-      setCurrentSymbols(data.result.symbols as SymbolType[]);
-
-      // Actualizar jugadas restantes
-      setBar((prev) =>
-        prev
-          ? {
-              ...prev,
-              freePlaysAvailable: data.freePlaysRemaining,
-              freePlaysUsed: prev.freePlaysTotal - data.freePlaysRemaining,
-            }
+      // Mapear los symbolDetails del servidor a SlotSymbol[] para la animación
+      const resultSymbols = mapServerResultToSlotSymbols(
+        result.symbolDetails,
+        symbols
+      );
+      setServerResults(resultSymbols);
+      setServerResultInfo({
+        isWinner: result.isWinner,
+        prize: result.prize
+          ? { name: result.prize.name, value: result.prize.value }
           : null,
-      );
-
-      // Esperar animación
-      setTimeout(() => {
-        setIsSpinning(false);
-        setCurrentScreen("result");
-      }, 3000);
+      });
     } catch (error: any) {
-      console.error("Error jugando:", error);
-      toast.error(
-        error.response?.data?.message || "Error al realizar la jugada",
-      );
-      setIsSpinning(false);
-      setCurrentScreen("welcome");
+      const message =
+        error.response?.data?.message || "Error al realizar la jugada";
+      toast.error(message);
+      setSpinError(message);
     }
-  };
+  }, [bar, session, slug, symbols, play]);
+
+  // ==================== HANDLER: ANIMACIÓN COMPLETA ====================
+  const handleAnimationComplete = useCallback(() => {
+    // Si no ganó, mostrar pantalla de resultado después de un breve delay
+    if (lastResult && !lastResult.isWinner) {
+      setTimeout(() => {
+        setCurrentScreen("result");
+      }, 800);
+    }
+    // Si ganó, el overlay de victoria se muestra en el SlotMachine
+    // y después de 3s podemos ir al resultado
+    if (lastResult?.isWinner) {
+      setTimeout(() => {
+        setCurrentScreen("result");
+      }, 3500);
+    }
+  }, [lastResult]);
 
   // ==================== HANDLER: JUGAR POR POZO GLOBAL ====================
-  const handlePlayGlobalPot = async () => {
-    if (!user || user.balance === undefined) {
-      toast.error("Error de usuario o saldo");
+  const handlePlayGlobalPot = () => {
+    if (!user || (user.balance ?? 0) < (pool?.costPerPlay ?? 0)) {
+      toast.error("Saldo insuficiente para jugar por el pozo global");
       return;
     }
-
-    if (user.balance < spinCost) {
-      toast.error("Saldo insuficiente");
-      return;
-    }
-
     setCurrentScreen("playing-global");
-  };
-  // ==================== HANDLER: RESULTADO POZO GLOBAL ====================
-  const handleGlobalPotResult = (result: GameResult) => {
-    setPlayResult({
-      result: {
-        symbols: result.symbols,
-        hasWon: result.isWin,
-        prize: result.prize
-          ? {
-              id: result.prize.id,
-              name: result.prize.name,
-              description: result.prize.description,
-              value: result.prize.value ?? 0,
-            }
-          : null,
-      },
-      freePlaysRemaining: bar?.freePlaysAvailable ?? 0,
-    });
-    setCurrentScreen("result");
   };
 
   // ==================== HANDLER: VOLVER AL INICIO ====================
   const handleBackToHome = () => {
     setCurrentScreen("welcome");
-    setPlayResult(null);
+    setServerResults(null);
+    setServerResultInfo(null);
+    setSpinError(null);
+    clearResult();
+  };
+
+  // ==================== HANDLER: RESULTADO POZO GLOBAL ====================
+  const handleGlobalPotResult = (result: GameResult) => {
+    // Adaptar el resultado del GlobalPotScreen al formato esperado
+    setCurrentScreen("result");
   };
 
   // ==================== HANDLER: LOGOUT ====================
   const handleLogout = async () => {
-    const { logout } = useAuthStore.getState();
-    await logout();
+    useGameStore.getState().reset();
+    await useAuthStore.getState().logout();
     router.push(`/play/${slug}/auth`);
   };
 
-  // ==================== LOADING STATE ====================
+  // ==================== LOADING ====================
   if (isLoadingBar) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -256,7 +179,7 @@ export default function BarGamePage() {
     );
   }
 
-  // ==================== ERROR STATE ====================
+  // ==================== ERROR ====================
   if (barError || !bar) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
@@ -277,7 +200,9 @@ export default function BarGamePage() {
     );
   }
 
-  // ==================== RENDER SCREENS ====================
+  // ==================== RENDER ====================
+  const freePlaysRemaining = session?.playsRemaining ?? 0;
+
   const renderScreen = () => {
     switch (currentScreen) {
       case "welcome":
@@ -288,12 +213,17 @@ export default function BarGamePage() {
               name: bar.name,
               slug: bar.slug,
               logoUrl: bar.logoUrl ?? undefined,
-              freeSpinsPerDay: bar.freeSpinsPerDay,
-              isActive: bar.isActive,
+              freeSpinsPerDay: bar.freePlaysPerDay,
+              isActive: true,
             }}
-            freeSpinsAvailable={bar.freePlaysAvailable}
-            // onPlayClick={handlePlayFree}
-            onPlayClick={() => setCurrentScreen("playing-free")}
+            freeSpinsAvailable={freePlaysRemaining}
+            onPlayClick={() => {
+              setServerResults(null);
+              setServerResultInfo(null);
+              setSpinError(null);
+              clearResult();
+              setCurrentScreen("playing-free");
+            }}
           />
         );
 
@@ -304,13 +234,29 @@ export default function BarGamePage() {
               config={{
                 title: bar.name,
                 barLogoUrl: bar.logoUrl,
-                currency: "Gs",
-                freeSpins: bar.freePlaysAvailable,
+                currency: "Gs.",
+                jackpotAmount: pool?.currentAmount ?? 0,
               }}
-              barSlug={bar.slug}
+              symbols={symbols}
+              usingCustomSymbols={usingCustomSymbols}
+              freeSpinsRemaining={freePlaysRemaining}
+              onRequestSpin={handleRequestSpin}
+              serverResults={serverResults}
+              serverResultInfo={serverResultInfo}
+              onAnimationComplete={handleAnimationComplete}
+              serverError={spinError}
             />
+
+            {/* Botón volver */}
+            <button
+              onClick={handleBackToHome}
+              className="mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Volver
+            </button>
+
             {/* Decoraciones */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden">
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
               <div className="absolute top-20 left-10 w-32 h-32 bg-yellow-400/10 rounded-full blur-3xl shimmer" />
               <div className="absolute bottom-20 right-10 w-40 h-40 bg-green-400/10 rounded-full blur-3xl shimmer" />
             </div>
@@ -318,35 +264,37 @@ export default function BarGamePage() {
         );
 
       case "result":
-        return playResult ? (
+        return lastResult ? (
           <ResultScreen
             result={{
-              isWin: playResult.result.hasWon,
-              symbols: playResult.result.symbols as SymbolType[],
-              prize: playResult.result.prize
+              isWin: lastResult.isWinner,
+              symbols: lastResult.symbols as SymbolType[],
+              prize: lastResult.prize
                 ? {
-                    id: playResult.result.prize.id,
-                    name: playResult.result.prize.name,
-                    description: playResult.result.prize.description,
-                    value: playResult.result.prize.value,
-                    type: "local" as const,
+                    id: lastResult.prize.id,
+                    name: lastResult.prize.name,
+                    description: lastResult.prize.claimCode
+                      ? `Código de reclamo: ${lastResult.prize.claimCode}`
+                      : lastResult.prize.name,
+                    value: lastResult.prize.value ?? 0,
+                    type: lastResult.prize.type === "jackpot" ? "jackpot" : "local",
                     stock: 0,
                     isActive: true,
                   }
                 : undefined,
-              newPotAmount: potAmount,
+              newPotAmount: pool?.currentAmount ?? 0,
               newBalance: user?.balance ?? 0,
             }}
             user={{
               id: user?.id || "",
               isAuthenticated: true,
               balance: user?.balance || 0,
-              freeSpinsUsed: bar.freePlaysUsed,
-              freeSpinsAvailable: bar.freePlaysAvailable,
+              freeSpinsUsed: session?.playsUsed ?? 0,
+              freeSpinsAvailable: freePlaysRemaining,
               name: user?.name ?? undefined,
               email: user?.email ?? undefined,
             }}
-            spinCost={spinCost}
+            spinCost={pool?.costPerPlay ?? 2000}
             onPlayGlobalPot={handlePlayGlobalPot}
             onLoadBalance={() => toast.info("Función de carga de saldo")}
             onBackToHome={handleBackToHome}
@@ -360,13 +308,13 @@ export default function BarGamePage() {
               id: user?.id || "",
               isAuthenticated: true,
               balance: user?.balance || 0,
-              freeSpinsUsed: bar.freePlaysUsed,
-              freeSpinsAvailable: bar.freePlaysAvailable,
+              freeSpinsUsed: session?.playsUsed ?? 0,
+              freeSpinsAvailable: freePlaysRemaining,
               name: user?.name ?? undefined,
               email: user?.email ?? undefined,
             }}
-            potAmount={potAmount}
-            spinCost={spinCost}
+            potAmount={pool?.currentAmount ?? 0}
+            spinCost={pool?.costPerPlay ?? 2000}
             onResult={handleGlobalPotResult}
             onBack={handleBackToHome}
           />
@@ -379,7 +327,6 @@ export default function BarGamePage() {
 
   return (
     <>
-      {/* Header */}
       <Header
         onProfileClick={() => toast.info("Mi Perfil - Por implementar")}
         onPrizesClick={() => toast.info("Mis Premios - Por implementar")}
@@ -387,7 +334,6 @@ export default function BarGamePage() {
         onLogout={handleLogout}
       />
 
-      {/* Contenido */}
       <div className="pt-16">{renderScreen()}</div>
     </>
   );

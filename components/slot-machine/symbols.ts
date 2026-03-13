@@ -2,37 +2,61 @@
 
 import type { SlotSymbol } from "../../types/slot-machine-type";
 
+/**
+ * Símbolos por defecto (emojis) como fallback cuando
+ * el bar no tiene símbolos configurados en el backend.
+ */
 export const DEFAULT_SYMBOLS: SlotSymbol[] = [
-  { id: "bell", label: "Campana", content: "🔔", multiplier: 2 },
-  { id: "grape", label: "Uva", content: "🍇", multiplier: 3 },
-  { id: "seven", label: "Siete", content: "7️⃣", multiplier: 10 },
-  { id: "orange", label: "Naranja", content: "🍊", multiplier: 2 },
-  { id: "cherry", label: "Cereza", content: "🍒", multiplier: 5 },
-  { id: "diamond", label: "Diamante", content: "💎", multiplier: 15 },
-  { id: "star", label: "Estrella", content: "⭐", multiplier: 8 },
-  { id: "lemon", label: "Limon", content: "🍋", multiplier: 1 },
+  { id: "bell", label: "Campana", content: "🔔", multiplier: 2, weight: 100 },
+  { id: "grape", label: "Uva", content: "🍇", multiplier: 3, weight: 100 },
+  { id: "seven", label: "Siete", content: "7️⃣", multiplier: 10, weight: 50 },
+  { id: "orange", label: "Naranja", content: "🍊", multiplier: 2, weight: 100 },
+  { id: "cherry", label: "Cereza", content: "🍒", multiplier: 5, weight: 80 },
+  { id: "diamond", label: "Diamante", content: "💎", multiplier: 15, weight: 30 },
+  { id: "star", label: "Estrella", content: "⭐", multiplier: 8, weight: 60 },
+  { id: "lemon", label: "Limon", content: "🍋", multiplier: 1, weight: 100 },
 ];
 
 /**
- * Get a random symbol from the symbols array
+ * Seleccionar un símbolo aleatorio usando los pesos como probabilidad.
+ * Si los símbolos no tienen peso, selecciona uniformemente.
+ *
+ * Un símbolo con weight=200 aparece el doble de veces que uno con weight=100.
  */
 export function getRandomSymbol(symbols: SlotSymbol[]): SlotSymbol {
+  // Si algún símbolo tiene peso, usar selección ponderada
+  const hasWeights = symbols.some((s) => s.weight && s.weight > 0);
+
+  if (hasWeights) {
+    const totalWeight = symbols.reduce((sum, s) => sum + (s.weight ?? 100), 0);
+    let random = Math.random() * totalWeight;
+
+    for (const symbol of symbols) {
+      random -= symbol.weight ?? 100;
+      if (random <= 0) {
+        return symbol;
+      }
+    }
+  }
+
+  // Fallback: selección uniforme
   return symbols[Math.floor(Math.random() * symbols.length)];
 }
 
 /**
- * Generate a strip of random symbols for a reel
+ * Generar una tira de símbolos aleatorios para un reel.
+ * Usado durante la animación de giro.
  */
 export function generateReelStrip(
   symbols: SlotSymbol[],
-  length: number,
+  length: number
 ): SlotSymbol[] {
   return Array.from({ length }, () => getRandomSymbol(symbols));
 }
 
 /**
- * Check if there's a win in the results
- * Returns: { isWin: boolean, matchCount: number, symbol: matched symbol or null }
+ * Verificar si hay una victoria en los resultados.
+ * Gana si todos los símbolos son iguales (5 de 5).
  */
 export function checkWin(results: SlotSymbol[]): {
   isWin: boolean;
@@ -55,7 +79,7 @@ export function checkWin(results: SlotSymbol[]): {
   }
 
   return {
-    isWin: maxCount >= 3, // Need at least 3 matching symbols to win
+    isWin: maxCount >= results.length, // Todos deben coincidir
     matchCount: maxCount,
     symbol: maxSymbol,
   };
