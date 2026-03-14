@@ -43,7 +43,7 @@ export function SlotReel({
   const speedRef = useRef(0);
   const offsetRef = useRef(0);
   const lastTimeRef = useRef(0);
-  const stopTimerRef = useRef<NodeJS.Timeout>();
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const startSpin = useCallback(() => {
     setHasStopped(false);

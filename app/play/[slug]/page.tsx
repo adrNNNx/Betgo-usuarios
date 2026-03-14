@@ -55,12 +55,32 @@ export default function BarGamePage() {
 
   // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
+  const [isScreenVisible, setIsScreenVisible] = useState(true);
   const [serverResults, setServerResults] = useState<SlotSymbol[] | null>(null);
   const [serverResultInfo, setServerResultInfo] = useState<{
     isWinner: boolean;
     prize?: { name: string; value?: number } | null;
   } | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
+
+  /**
+   * Cambiar pantalla con transición suave.
+   * Fade-out (300ms) → cambiar screen → fade-in (300ms).
+   */
+  const transitionTo = useCallback((screen: GameScreen) => {
+    // Si ya estamos en esa pantalla, no hacer nada
+    if (screen === currentScreen) return;
+
+    setIsScreenVisible(false); // inicia fade-out
+
+    setTimeout(() => {
+      setCurrentScreen(screen); // cambiar pantalla mientras está invisible
+      // Pequeño delay para que React pinte el nuevo contenido antes del fade-in
+      requestAnimationFrame(() => {
+        setIsScreenVisible(true); // inicia fade-in
+      });
+    }, 280);
+  }, [currentScreen]);
 
   // ==================== CARGAR BAR AL MONTAR ====================
   useEffect(() => {
@@ -121,20 +141,26 @@ export default function BarGamePage() {
 
   // ==================== HANDLER: ANIMACIÓN COMPLETA ====================
   const handleAnimationComplete = useCallback(() => {
-    // Si no ganó, mostrar pantalla de resultado después de un breve delay
-    if (lastResult && !lastResult.isWinner) {
-      setTimeout(() => {
-        setCurrentScreen("result");
-      }, 800);
-    }
-    // Si ganó, el overlay de victoria se muestra en el SlotMachine
-    // y después de 3s podemos ir al resultado
+    const { session: currentSession } = useGameStore.getState();
+    const remaining = currentSession?.playsRemaining ?? 0;
+
     if (lastResult?.isWinner) {
       setTimeout(() => {
-        setCurrentScreen("result");
+        transitionTo("result");
       }, 3500);
+    } else if (remaining <= 0) {
+      // NO GANÓ y NO tiene más jugadas → ir al resultado
+      // SlotMachine ya esperó ~1.7s (aterrizaje + mensaje visible),
+      // solo se agrega la transición suave de la pantalla
+      transitionTo("result");
+    } else {
+      // NO GANÓ pero TIENE jugadas restantes → quedarse en la máquina
+      // Limpiar estado para que pueda girar de nuevo
+      setServerResults(null);
+      setServerResultInfo(null);
+      clearResult();
     }
-  }, [lastResult]);
+  }, [lastResult, clearResult, transitionTo]);
 
   // ==================== HANDLER: JUGAR POR POZO GLOBAL ====================
   const handlePlayGlobalPot = () => {
@@ -142,12 +168,12 @@ export default function BarGamePage() {
       toast.error("Saldo insuficiente para jugar por el pozo global");
       return;
     }
-    setCurrentScreen("playing-global");
+    transitionTo("playing-global");
   };
 
   // ==================== HANDLER: VOLVER AL INICIO ====================
   const handleBackToHome = () => {
-    setCurrentScreen("welcome");
+    transitionTo("welcome");
     setServerResults(null);
     setServerResultInfo(null);
     setSpinError(null);
@@ -157,7 +183,7 @@ export default function BarGamePage() {
   // ==================== HANDLER: RESULTADO POZO GLOBAL ====================
   const handleGlobalPotResult = (result: GameResult) => {
     // Adaptar el resultado del GlobalPotScreen al formato esperado
-    setCurrentScreen("result");
+    transitionTo("result");
   };
 
   // ==================== HANDLER: LOGOUT ====================
@@ -222,7 +248,7 @@ export default function BarGamePage() {
               setServerResultInfo(null);
               setSpinError(null);
               clearResult();
-              setCurrentScreen("playing-free");
+              transitionTo("playing-free");
             }}
           />
         );
@@ -334,7 +360,15 @@ export default function BarGamePage() {
         onLogout={handleLogout}
       />
 
-      <div className="pt-16">{renderScreen()}</div>
+      <div
+        className="pt-16 transition-all duration-300 ease-in-out"
+        style={{
+          opacity: isScreenVisible ? 1 : 0,
+          transform: isScreenVisible ? "translateY(0)" : "translateY(8px)",
+        }}
+      >
+        {renderScreen()}
+      </div>
     </>
   );
 }

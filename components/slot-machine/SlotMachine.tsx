@@ -62,7 +62,7 @@ export function SlotMachine({
     barLogoUrl = null,
     jackpotAmount = 0,
     currency = "Gs.",
-    spinDuration = 2000,
+    spinDuration = 900,
     canSpin = true,
   } = config;
 
@@ -77,6 +77,7 @@ export function SlotMachine({
     symbol: SlotSymbol | null;
   } | null>(null);
   const [showWin, setShowWin] = useState(false);
+  const [showLoseMessage, setShowLoseMessage] = useState(false);
   const stoppedCount = useRef(0);
   const isWaitingForServer = useRef(false);
 
@@ -102,6 +103,7 @@ export function SlotMachine({
     if (spinState !== "idle" || freeSpinsRemaining <= 0 || !canSpin) return;
 
     setShowWin(false);
+    setShowLoseMessage(false);
     setWinInfo(null);
     stoppedCount.current = 0;
     setResults([]);
@@ -151,7 +153,14 @@ export function SlotMachine({
             onAnimationComplete?.();
           }, 3000);
         } else {
-          onAnimationComplete?.();
+          // Esperar la animación de aterrizaje del reel (~400ms CSS transition)
+          // Tiempo de espera antes de pasar al componente de resultados una vez perdido.
+          setTimeout(() => {
+            setShowLoseMessage(true);
+            setTimeout(() => {
+              onAnimationComplete?.();
+            }, 1850);
+          }, 1450);
         }
       } else {
         // Modo local
@@ -375,6 +384,37 @@ export function SlotMachine({
                 : "0 -2px 10px oklch(0.72 0.15 85 / 0.4)",
             }}
           />
+        </div>
+
+        {/* Lose message - stays until next spin */}
+        <div
+          className="text-center overflow-hidden transition-all duration-500 ease-out"
+          style={{
+            maxHeight: showLoseMessage ? "80px" : "0px",
+            opacity: showLoseMessage ? 1 : 0,
+            transform: showLoseMessage ? "translateY(0)" : "translateY(-8px)",
+            marginTop: showLoseMessage ? "4px" : "0px",
+          }}
+        >
+          <div
+            className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 sm:px-5 sm:py-2"
+            style={{
+              background: "oklch(0.25 0.03 160 / 0.9)",
+              border: "1px solid oklch(0.35 0.02 160)",
+            }}
+          >
+            <span className="text-sm sm:text-base text-muted-foreground">
+              No fue esta vez
+            </span>
+            {freeSpinsRemaining > 0 && (
+              <>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="text-sm sm:text-base text-primary font-medium">
+                  ¡Intentá de nuevo!
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Spin Button */}
