@@ -80,6 +80,12 @@ export function SlotMachine({
   const [showLoseMessage, setShowLoseMessage] = useState(false);
   const stoppedCount = useRef(0);
   const isWaitingForServer = useRef(false);
+  const onAnimationCompleteRef = useRef(onAnimationComplete);
+  const loseTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    onAnimationCompleteRef.current = onAnimationComplete;
+  }, [onAnimationComplete]);
 
   // ==================== MANEJAR RESULTADO DEL SERVIDOR ====================
   useEffect(() => {
@@ -150,15 +156,15 @@ export function SlotMachine({
           setShowWin(true);
           setTimeout(() => {
             setSpinState("idle");
-            onAnimationComplete?.();
+            onAnimationCompleteRef.current?.();
           }, 3000);
         } else {
-          // Esperar la animación de aterrizaje del reel (~400ms CSS transition)
-          // Tiempo de espera antes de pasar al componente de resultados una vez perdido.
-          setTimeout(() => {
+          // Limpiar cualquier timer previo y esperar la animación de aterrizaje
+          clearTimeout(loseTimerRef.current);
+          loseTimerRef.current = setTimeout(() => {
             setShowLoseMessage(true);
-            setTimeout(() => {
-              onAnimationComplete?.();
+            loseTimerRef.current = setTimeout(() => {
+              onAnimationCompleteRef.current?.();
             }, 1850);
           }, 1450);
         }
@@ -173,7 +179,7 @@ export function SlotMachine({
         }
       }
     }
-  }, [results, reelCount, serverResultInfo, onAnimationComplete]);
+  }, [results, reelCount, serverResultInfo]);
 
   // ==================== KEYBOARD ====================
   useEffect(() => {

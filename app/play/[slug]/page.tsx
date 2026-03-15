@@ -141,10 +141,11 @@ export default function BarGamePage() {
 
   // ==================== HANDLER: ANIMACIÓN COMPLETA ====================
   const handleAnimationComplete = useCallback(() => {
-    const { session: currentSession } = useGameStore.getState();
+    // Leer siempre del store para evitar closures stale
+    const { session: currentSession, lastResult: currentLastResult } = useGameStore.getState();
     const remaining = currentSession?.playsRemaining ?? 0;
 
-    if (lastResult?.isWinner) {
+    if (currentLastResult?.isWinner) {
       setTimeout(() => {
         transitionTo("result");
       }, 3500);
@@ -160,7 +161,7 @@ export default function BarGamePage() {
       setServerResultInfo(null);
       clearResult();
     }
-  }, [lastResult, clearResult, transitionTo]);
+  }, [transitionTo, clearResult]);
 
   // ==================== HANDLER: JUGAR POR POZO GLOBAL ====================
   const handlePlayGlobalPot = () => {
@@ -321,6 +322,10 @@ export default function BarGamePage() {
               email: user?.email ?? undefined,
             }}
             spinCost={pool?.costPerPlay ?? 2000}
+            bar={{
+              name: bar.name,
+              logoUrl: bar.logoUrl,
+            }}
             onPlayGlobalPot={handlePlayGlobalPot}
             onLoadBalance={() => toast.info("Función de carga de saldo")}
             onBackToHome={handleBackToHome}

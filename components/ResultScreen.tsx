@@ -1,14 +1,20 @@
 // components/ResultScreen.tsx
 "use client";
 
-import { GameResult, User } from "@/types/game";
-import { formatCurrency } from "@/lib/game-logic";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/game-logic";
+import type { GameResult, User } from "@/types/game";
+
+interface BarInfo {
+  name: string;
+  logoUrl?: string | null;
+}
 
 interface ResultScreenProps {
   result: GameResult;
   user: User;
   spinCost: number;
+  bar: BarInfo;
   onPlayGlobalPot?: () => void;
   onLoadBalance?: () => void;
   onBackToHome: () => void;
@@ -18,159 +24,196 @@ export function ResultScreen({
   result,
   user,
   spinCost,
+  bar,
   onPlayGlobalPot,
   onLoadBalance,
   onBackToHome,
 }: ResultScreenProps) {
-  const hasSufficientBalance = user.balance >= spinCost;
-  const canPlayGlobalPot = user.isAuthenticated && hasSufficientBalance;
+  const canPlay = user.isAuthenticated && user.balance >= spinCost;
+  const isWin = result.isWin;
+
+  // Iniciales del bar como fallback del logo
+  const initials = bar.name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-md space-y-6 animate-in fade-in duration-500">
-        {/* Logo del bar (pequeño) */}
-        <div className="text-center">
-          <div className="inline-block bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl px-6 py-3 border border-yellow-600/30">
-            <div className="text-2xl font-display text-yellow-400">
-              EL MARISCAL
-            </div>
-            <div className="text-xs text-gray-400">BARRA & CERVEZA</div>
+    <div className="flex min-h-screen w-full flex-col items-center justify-center px-4 py-8 sm:px-6">
+      <div className="w-full max-w-sm space-y-7">
+
+        {/* ===== BAR HEADER ===== */}
+        <header className="text-center opacity-0 animate-fade-in-up">
+          <div className="mx-auto mb-5 inline-flex items-center gap-3 rounded-xl border border-primary/30 bg-card/80 px-5 py-2.5 backdrop-blur-sm">
+            {bar.logoUrl ? (
+              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-primary/30">
+                <img
+                  src={bar.logoUrl}
+                  alt={bar.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-muted/50">
+                <span className="text-xs font-bold text-primary">
+                  {initials}
+                </span>
+              </div>
+            )}
+            <span className="text-base font-bold tracking-wide text-primary sm:text-lg font-display">
+              {bar.name}
+            </span>
           </div>
-        </div>
 
-        {/* Mensaje de resultado */}
-        <div className="text-center space-y-2">
-          <h1 className="font-display text-3xl sm:text-4xl text-white">
-            Esta vez no fue
-          </h1>
-          <p className="text-gray-300 font-body text-lg">
-            Pero puedes seguir intentando
-          </p>
-        </div>
-
-        {/* Card de información */}
-        <div
-          className={cn(
-            "bg-gradient-to-br from-gray-800/90 to-gray-900/90",
-            "backdrop-blur-sm",
-            "rounded-2xl p-6",
-            "border-2 border-gray-700/50",
-            "shadow-2xl",
-            "space-y-4",
+          {/* Título principal */}
+          {isWin ? (
+            <>
+              <h1 className="text-balance text-2xl font-bold text-foreground sm:text-3xl font-display">
+                ¡Felicidades!
+              </h1>
+              <p className="mt-2 text-sm text-primary sm:text-base">
+                {result.prize?.name || "¡Ganaste un premio!"}
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-balance text-2xl font-semibold text-foreground sm:text-3xl">
+                Se acabaron las jugadas
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+                Pero puedes seguir intentando
+              </p>
+            </>
           )}
+        </header>
+
+        {/* ===== JACKPOT CARD ===== */}
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-b from-card to-card/50 p-6 shadow-lg opacity-0 animate-fade-in-up animation-delay-100"
+          style={{ boxShadow: "0 8px 32px oklch(0.72 0.15 85 / 0.06)" }}
         >
-          {/* Pozo Global */}
-          <div className="text-center p-4 bg-black/30 rounded-xl border border-yellow-600/20">
-            <p className="text-gray-400 text-sm font-body mb-1">
-              Pozo Global Actual
-            </p>
-            <p className="text-yellow-400 font-display text-3xl sm:text-4xl gold-glow">
-              {formatCurrency(result.newPotAmount)}
-            </p>
-          </div>
+          {/* Glow sutil de fondo */}
+          <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent" />
 
-          {/* Información del usuario (solo si está autenticado) */}
-          {user.isAuthenticated && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-black/20 rounded-lg">
-                <p className="text-gray-400 text-xs font-body mb-1">Saldo:</p>
-                <p className="text-green-400 font-display text-xl">
-                  {formatCurrency(result.newBalance)}
-                </p>
-              </div>
-              <div className="text-center p-3 bg-black/20 rounded-lg">
-                <p className="text-gray-400 text-xs font-body mb-1">Costo:</p>
-                <p className="text-white font-display text-xl">
-                  {formatCurrency(spinCost)}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Mensaje de saldo suficiente */}
-          {canPlayGlobalPot && (
-            <div className="text-center p-3 bg-green-500/10 border border-green-400/30 rounded-lg">
-              <p className="text-green-400 font-body text-sm font-semibold">
-                ¡Tienes saldo suficiente! Juega por el pozo global
+          <div className="relative space-y-5">
+            {/* Monto del pozo */}
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground sm:text-xs">
+                Pozo Global
+              </p>
+              <p className="mt-1 text-3xl font-bold tabular-nums sm:text-4xl gold-text font-display">
+                {formatCurrency(result.newPotAmount)}
               </p>
             </div>
-          )}
+
+            {/* Separador */}
+            <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+            {/* Saldo y Costo */}
+            {user.isAuthenticated && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-muted/40 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
+                    Tu saldo
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-0.5 text-base font-semibold tabular-nums sm:text-lg font-display",
+                      canPlay
+                        ? "text-emerald-400"
+                        : "text-destructive"
+                    )}
+                  >
+                    {formatCurrency(user.balance)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-muted/40 p-3 text-center">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
+                    Costo por jugada
+                  </p>
+                  <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground sm:text-lg font-display">
+                    {formatCurrency(spinCost)}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Mensaje de saldo suficiente */}
+            {canPlay && (
+              <div className="rounded-lg px-4 py-2.5 text-center"
+                style={{ background: "oklch(0.45 0.15 155 / 0.12)" }}
+              >
+                <p className="text-xs font-medium text-emerald-400 sm:text-sm">
+                  Tienes saldo suficiente para jugar
+                </p>
+              </div>
+            )}
+
+            {/* Mensaje de premio ganado */}
+            {isWin && result.prize && (
+              <div className="rounded-lg px-4 py-3 text-center"
+                style={{ background: "oklch(0.72 0.15 85 / 0.1)" }}
+              >
+                <p className="text-xs font-medium text-primary sm:text-sm">
+                  {result.prize.description}
+                </p>
+                {result.prize.value ? (
+                  <p className="mt-1 text-lg font-bold text-primary font-display">
+                    +{formatCurrency(result.prize.value)}
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Botones de acción */}
-        <div className="space-y-3">
-          {/* Botón: Jugar por el Pozo Global */}
-          {canPlayGlobalPot && onPlayGlobalPot && (
+        {/* ===== BOTONES DE ACCIÓN ===== */}
+        <div className="space-y-3 opacity-0 animate-fade-in-up animation-delay-200">
+          {/* Jugar por el Pozo Global */}
+          {canPlay && onPlayGlobalPot && (
             <button
               onClick={onPlayGlobalPot}
-              className={cn(
-                "w-full",
-                "bg-gradient-to-r from-yellow-400 to-yellow-500",
-                "hover:from-yellow-500 hover:to-yellow-600",
-                "text-green-900 font-display text-xl sm:text-2xl font-black",
-                "py-4 px-6",
-                "rounded-full",
-                "shadow-xl hover:shadow-yellow-400/50",
-                "transition-all duration-300",
-                "hover:scale-[1.02]",
-                "pulse-glow",
-              )}
+              className="group relative w-full overflow-hidden rounded-xl px-6 py-4 text-base font-bold shadow-lg transition-all duration-300 hover:shadow-xl active:scale-[0.98] sm:text-lg font-display"
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.72 0.15 85), oklch(0.68 0.17 70))",
+                color: "oklch(0.2 0.05 160)",
+                boxShadow: "0 4px 20px oklch(0.72 0.15 85 / 0.25)",
+              }}
             >
-              Jugar por el Pozo Global
+              <span className="relative z-10">Jugar por el Pozo Global</span>
+              {/* Shine effect */}
+              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             </button>
           )}
 
-          {/* Botón: Cargar más saldo */}
+          {/* Cargar más saldo */}
           {user.isAuthenticated && onLoadBalance && (
             <button
               onClick={onLoadBalance}
-              className={cn(
-                "w-full",
-                "bg-gradient-to-r from-blue-500 to-blue-600",
-                "hover:from-blue-600 hover:to-blue-700",
-                "text-white font-body text-lg font-semibold",
-                "py-3 px-6",
-                "rounded-full",
-                "shadow-lg hover:shadow-blue-400/50",
-                "transition-all duration-300",
-                "hover:scale-[1.02]",
-              )}
+              className="w-full rounded-xl border-2 border-primary/30 px-6 py-3.5 text-sm font-medium text-primary transition-all duration-200 hover:border-primary/50 active:scale-[0.98] sm:text-base"
+              style={{ background: "oklch(0.72 0.15 85 / 0.08)" }}
             >
               Cargar más saldo
             </button>
           )}
 
-          {/* Botón: Volver al inicio */}
+          {/* Volver al inicio */}
           <button
             onClick={onBackToHome}
-            className={cn(
-              "w-full",
-              "bg-gray-700 hover:bg-gray-600",
-              "text-white font-body text-base",
-              "py-3 px-6",
-              "rounded-full",
-              "shadow-lg",
-              "transition-all duration-300",
-              "hover:scale-[1.02]",
-            )}
+            className="w-full rounded-xl bg-muted/50 px-6 py-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-[0.98] sm:text-base"
           >
             Volver al inicio
           </button>
         </div>
 
-        {/* Nota para usuarios no autenticados */}
+        {/* Nota para no autenticados */}
         {!user.isAuthenticated && (
-          <p className="text-center text-gray-400 text-sm font-body">
-            Regístrate o inicia sesión para jugar por el pozo global y ganar
-            premios mayores
+          <p className="text-center text-xs text-muted-foreground opacity-0 animate-fade-in-up animation-delay-300">
+            Regístrate o inicia sesión para jugar por el pozo global
           </p>
         )}
-      </div>
-
-      {/* Decoraciones de fondo */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-10 right-10 w-32 h-32 bg-red-400/10 rounded-full blur-3xl shimmer" />
-        <div className="absolute bottom-10 left-10 w-40 h-40 bg-yellow-400/10 rounded-full blur-3xl shimmer" />
       </div>
     </div>
   );
