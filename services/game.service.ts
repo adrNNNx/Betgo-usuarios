@@ -51,6 +51,7 @@ export interface PlayResultResponse {
     name: string;
     type: string;
     value?: number;
+    imageUrl?: string;
     claimCode?: string;
   } | null;
   session: {

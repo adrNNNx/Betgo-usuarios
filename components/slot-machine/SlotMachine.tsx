@@ -8,7 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 import { getRandomSymbol, checkWin } from "./symbols";
-import { SlotMachineConfig, SpinState, SlotSymbol } from "@/types/slot-machine-type";
+import {
+  SlotMachineConfig,
+  SpinState,
+  SlotSymbol,
+} from "@/types/slot-machine-type";
 import { JackpotDisplay } from "./JackpotDisplay";
 import { SlotReel } from "./SlotReel";
 
@@ -35,7 +39,12 @@ interface SlotMachineProps {
   /** Info del resultado del servidor */
   serverResultInfo?: {
     isWinner: boolean;
-    prize?: { name: string; value?: number } | null;
+    prize?: {
+      name: string;
+      value?: number;
+      imageUrl?: string | null;
+      claimCode?: string | null;
+    } | null;
   } | null;
   /** Callback cuando termina toda la animación */
   onAnimationComplete?: () => void;
@@ -81,7 +90,12 @@ export function SlotMachine({
   const stoppedCount = useRef(0);
   const isWaitingForServer = useRef(false);
   const onAnimationCompleteRef = useRef(onAnimationComplete);
-  const loseTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const loseTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const winTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     onAnimationCompleteRef.current = onAnimationComplete;
@@ -89,7 +103,11 @@ export function SlotMachine({
 
   // ==================== MANEJAR RESULTADO DEL SERVIDOR ====================
   useEffect(() => {
-    if (serverResults && serverResults.length > 0 && isWaitingForServer.current) {
+    if (
+      serverResults &&
+      serverResults.length > 0 &&
+      isWaitingForServer.current
+    ) {
       isWaitingForServer.current = false;
       setFinalSymbols(serverResults);
       setSpinState("spinning");
@@ -108,6 +126,8 @@ export function SlotMachine({
   const handleSpin = useCallback(() => {
     if (spinState !== "idle" || freeSpinsRemaining <= 0 || !canSpin) return;
 
+    clearTimeout(winTimerRef.current);
+    clearTimeout(loseTimerRef.current);
     setShowWin(false);
     setShowLoseMessage(false);
     setWinInfo(null);
@@ -122,12 +142,19 @@ export function SlotMachine({
     } else {
       // Modo local (fallback): generar resultado localmente
       const newFinals = Array.from({ length: reelCount }, () =>
-        getRandomSymbol(symbols)
+        getRandomSymbol(symbols),
       );
       setFinalSymbols(newFinals);
       setSpinState("spinning");
     }
-  }, [spinState, freeSpinsRemaining, canSpin, reelCount, symbols, onRequestSpin]);
+  }, [
+    spinState,
+    freeSpinsRemaining,
+    canSpin,
+    reelCount,
+    symbols,
+    onRequestSpin,
+  ]);
 
   // ==================== CUANDO UN REEL PARA ====================
   const handleReelStopped = useCallback(() => {
@@ -153,11 +180,14 @@ export function SlotMachine({
 
         if (serverResultInfo.isWinner) {
           setSpinState("won");
-          setShowWin(true);
-          setTimeout(() => {
-            setSpinState("idle");
-            onAnimationCompleteRef.current?.();
-          }, 3000);
+          clearTimeout(winTimerRef.current);
+          winTimerRef.current = setTimeout(() => {
+            setShowWin(true);
+            setTimeout(() => {
+              setSpinState("idle");
+              onAnimationCompleteRef.current?.();
+            }, 3000);
+          }, 1700);
         } else {
           // Limpiar cualquier timer previo y esperar la animación de aterrizaje
           clearTimeout(loseTimerRef.current);
@@ -486,8 +516,26 @@ export function SlotMachine({
               animationDuration: "0.7s",
             }}
           >
-            <div className="text-5xl sm:text-6xl animate-bounce-subtle">
-              {winInfo.symbol?.content || "🎰"}
+            <div className="flex items-center justify-center animate-bounce-subtle">
+              {serverResultInfo?.prize?.imageUrl ? (
+                <img
+                  src={serverResultInfo.prize.imageUrl}
+                  alt={serverResultInfo.prize.name}
+                  className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-lg"
+                  crossOrigin="anonymous"
+                />
+              ) : winInfo.symbol?.content?.startsWith("http") ? (
+                <img
+                  src={winInfo.symbol.content}
+                  alt={winInfo.symbol.label}
+                  className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-lg"
+                  crossOrigin="anonymous"
+                />
+              ) : (
+                <span className="text-5xl sm:text-6xl">
+                  {winInfo.symbol?.content || "🎰"}
+                </span>
+              )}
             </div>
             <h2 className="mt-3 text-2xl font-black uppercase sm:mt-4 sm:text-3xl text-primary font-display">
               ¡Ganaste!
@@ -497,12 +545,16 @@ export function SlotMachine({
                 <p className="mt-1 text-sm sm:mt-2 sm:text-lg text-muted-foreground">
                   {serverResultInfo.prize.name}
                 </p>
-                {serverResultInfo.prize.value && (
+                {serverResultInfo.prize.value ? (
                   <p className="mt-1 text-xl font-bold sm:text-2xl text-primary font-display">
                     +{currency}{" "}
                     {serverResultInfo.prize.value.toLocaleString("es-PY")}
                   </p>
-                )}
+                ) : serverResultInfo.prize.claimCode ? (
+                  <p className="mt-2 text-xs sm:text-sm text-muted-foreground/70 tracking-widest font-mono">
+                    {serverResultInfo.prize.claimCode}
+                  </p>
+                ) : null}
               </>
             ) : (
               <p className="mt-1 text-sm sm:mt-2 sm:text-lg text-muted-foreground">

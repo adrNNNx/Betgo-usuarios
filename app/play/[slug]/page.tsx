@@ -59,7 +59,12 @@ export default function BarGamePage() {
   const [serverResults, setServerResults] = useState<SlotSymbol[] | null>(null);
   const [serverResultInfo, setServerResultInfo] = useState<{
     isWinner: boolean;
-    prize?: { name: string; value?: number } | null;
+    prize?: {
+      name: string;
+      value?: number;
+      imageUrl?: string | null;
+      claimCode?: string | null;
+    } | null;
   } | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
 
@@ -128,7 +133,12 @@ export default function BarGamePage() {
       setServerResultInfo({
         isWinner: result.isWinner,
         prize: result.prize
-          ? { name: result.prize.name, value: result.prize.value }
+          ? {
+              name: result.prize.name,
+              value: result.prize.value,
+              imageUrl: result.prize.imageUrl ?? null,
+              claimCode: result.prize.claimCode ?? null,
+            }
           : null,
       });
     } catch (error: any) {
