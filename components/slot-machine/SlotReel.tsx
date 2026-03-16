@@ -97,7 +97,7 @@ export function SlotReel({
               newStrip.length;
             newStrip[safeIndex] = finalSymbol;
             setStrip(newStrip);
-            setOffset(safeIndex * symbolHeight - symbolHeight);
+            setOffset(safeIndex * symbolHeight);
           }
 
           setHasStopped(true);
@@ -179,7 +179,7 @@ export function SlotReel({
         }}
       >
         {visibleSymbols.map((symbol, i) => {
-          const isCenter = i === 2;
+          const isCenter = i === 1;
           return (
             <div
               key={`${symbol.id}-${i}`}

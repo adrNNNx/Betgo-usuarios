@@ -187,7 +187,7 @@ export function SlotMachine({
               setSpinState("idle");
               onAnimationCompleteRef.current?.();
             }, 3000);
-          }, 1700);
+          }, 1900);
         } else {
           // Limpiar cualquier timer previo y esperar la animación de aterrizaje
           clearTimeout(loseTimerRef.current);

@@ -1,6 +1,8 @@
 // components/ResultScreen.tsx
 "use client";
 
+import { useEffect } from "react";
+import confetti from "canvas-confetti";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/game-logic";
 import type { GameResult, User } from "@/types/game";
@@ -31,6 +33,46 @@ export function ResultScreen({
 }: ResultScreenProps) {
   const canPlay = user.isAuthenticated && user.balance >= spinCost;
   const isWin = result.isWin;
+
+  // Efecto snow durante 3 segundos
+  useEffect(() => {
+    if (!isWin) return;
+
+    const colors = ["#d4a017", "#f0c040", "#ffffff", "#a8d8a8"];
+    const duration = 1200;
+    const animationEnd = Date.now() + duration;
+    let skew = 1;
+
+    const randomInRange = (min: number, max: number) =>
+      Math.random() * (max - min) + min;
+
+    let rafId: number;
+    const frame = () => {
+      const timeLeft = animationEnd - Date.now();
+      const ticks = Math.max(200, 500 * (timeLeft / duration));
+      skew = Math.max(0.8, skew - 0.001);
+
+      confetti({
+        particleCount: 1,
+        startVelocity: 0,
+        ticks,
+        origin: {
+          x: Math.random(),
+          y: Math.random() * skew - 0.2,
+        },
+        colors,
+        shapes: ["circle", "square"],
+        gravity: randomInRange(0.4, 0.6),
+        scalar: randomInRange(0.4, 1),
+        drift: randomInRange(-0.4, 0.4),
+      });
+
+      if (timeLeft > 0) rafId = requestAnimationFrame(frame);
+    };
+
+    frame();
+    return () => cancelAnimationFrame(rafId);
+  }, [isWin]);
 
   // Iniciales del bar como fallback del logo
   const initials = bar.name
