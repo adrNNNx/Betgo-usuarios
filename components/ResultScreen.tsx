@@ -1,11 +1,13 @@
 // components/ResultScreen.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/game-logic";
 import type { GameResult, User } from "@/types/game";
+import { Button } from "@/components/ui/button";
+import { TrendingUp } from "lucide-react";
 
 interface BarInfo {
   name: string;
@@ -33,8 +35,17 @@ export function ResultScreen({
 }: ResultScreenProps) {
   const canPlay = user.isAuthenticated && user.balance >= spinCost;
   const isWin = result.isWin;
+  const [copied, setCopied] = useState(false);
 
-  // Efecto snow durante 3 segundos
+  const handleCopy = () => {
+    if (!result.prize?.claimCode) return;
+    navigator.clipboard.writeText(result.prize.claimCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  // Snow confetti al ganar
   useEffect(() => {
     if (!isWin) return;
 
@@ -42,7 +53,6 @@ export function ResultScreen({
     const duration = 1200;
     const animationEnd = Date.now() + duration;
     let skew = 1;
-
     const randomInRange = (min: number, max: number) =>
       Math.random() * (max - min) + min;
 
@@ -51,30 +61,24 @@ export function ResultScreen({
       const timeLeft = animationEnd - Date.now();
       const ticks = Math.max(200, 500 * (timeLeft / duration));
       skew = Math.max(0.8, skew - 0.001);
-
       confetti({
         particleCount: 1,
         startVelocity: 0,
         ticks,
-        origin: {
-          x: Math.random(),
-          y: Math.random() * skew - 0.2,
-        },
+        origin: { x: Math.random(), y: Math.random() * skew - 0.2 },
         colors,
         shapes: ["circle", "square"],
         gravity: randomInRange(0.4, 0.6),
         scalar: randomInRange(0.4, 1),
         drift: randomInRange(-0.4, 0.4),
       });
-
       if (timeLeft > 0) rafId = requestAnimationFrame(frame);
     };
-
     frame();
     return () => cancelAnimationFrame(rafId);
   }, [isWin]);
 
-  // Iniciales del bar como fallback del logo
+  // Iniciales del bar como fallback
   const initials = bar.name
     .split(" ")
     .map((w) => w[0])
@@ -84,13 +88,12 @@ export function ResultScreen({
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center px-4 py-8 sm:px-6">
-      <div className="w-full max-w-sm space-y-7">
-
+      <div className="w-full max-w-sm space-y-5">
         {/* ===== BAR HEADER ===== */}
         <header className="text-center opacity-0 animate-fade-in-up">
-          <div className="mx-auto mb-5 inline-flex items-center gap-3 rounded-xl border border-primary/30 bg-card/80 px-5 py-2.5 backdrop-blur-sm">
+          <div className="mx-auto mb-4 inline-flex items-center gap-3 rounded-xl border border-primary/30 bg-card/80 px-5 py-2.5 backdrop-blur-sm">
             {bar.logoUrl ? (
-              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-primary/30">
+              <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-primary/30">
                 <img
                   src={bar.logoUrl}
                   alt={bar.name}
@@ -104,155 +107,245 @@ export function ResultScreen({
                 </span>
               </div>
             )}
-            <span className="text-base font-bold tracking-wide text-primary sm:text-lg font-display">
+            <span className="font-display text-base font-bold tracking-wide text-primary sm:text-lg">
               {bar.name}
             </span>
           </div>
 
-          {/* Título principal */}
           {isWin ? (
             <>
-              <h1 className="text-balance text-2xl font-bold text-foreground sm:text-3xl font-display">
+              <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
                 ¡Felicidades!
               </h1>
-              <p className="mt-2 text-sm text-primary sm:text-base">
-                {result.prize?.name || "¡Ganaste un premio!"}
+              <p className="mt-1.5 text-sm text-primary sm:text-base">
+                Ganaste un premio gratis
               </p>
             </>
           ) : (
             <>
-              <h1 className="text-balance text-2xl font-semibold text-foreground sm:text-3xl">
+              <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
                 Se acabaron las jugadas
               </h1>
-              <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+              <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">
                 Pero puedes seguir intentando
               </p>
             </>
           )}
         </header>
 
-        {/* ===== JACKPOT CARD ===== */}
-        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-b from-card to-card/50 p-6 shadow-lg opacity-0 animate-fade-in-up animation-delay-100"
-          style={{ boxShadow: "0 8px 32px oklch(0.72 0.15 85 / 0.06)" }}
-        >
-          {/* Glow sutil de fondo */}
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent" />
-
-          <div className="relative space-y-5">
-            {/* Monto del pozo */}
-            <div className="text-center">
-              <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground sm:text-xs">
-                Pozo Global
+        {/* ===== PRIZE CARD (solo al ganar) ===== */}
+        {isWin && result.prize && (
+          <div
+            className="overflow-hidden rounded-2xl border border-primary/20 bg-linear-to-b from-card to-card/60 shadow-lg opacity-0 animate-fade-in-up animation-delay-100"
+            style={{ boxShadow: "0 8px 32px oklch(0.72 0.15 85 / 0.08)" }}
+          >
+            {/* Imagen + nombre del premio */}
+            <div className="flex flex-col items-center px-6 pt-6 pb-5">
+              {result.prize.imageUrl && (
+                <div className="mb-4 flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
+                  <img
+                    src={result.prize.imageUrl}
+                    alt={result.prize.name}
+                    className="h-full w-full object-contain drop-shadow-lg"
+                    crossOrigin="anonymous"
+                  />
+                </div>
+              )}
+              <p className="font-display text-lg font-bold text-primary sm:text-xl text-center">
+                {result.prize.name}
               </p>
-              <p className="mt-1 text-3xl font-bold tabular-nums sm:text-4xl gold-text font-display">
+              {result.prize.value ? (
+                <p className="mt-1 font-display text-2xl font-bold text-primary sm:text-3xl">
+                  +{formatCurrency(result.prize.value)}
+                </p>
+              ) : null}
+            </div>
+
+            {/* Divisoria */}
+            <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+            {/* QR + Código */}
+            {result.prize.claimQrCode && (
+              <div className="space-y-4 px-6 py-5">
+                {/* QR */}
+                <div className="text-center">
+                  <p className="mb-3 text-[10px] uppercase tracking-[0.15em] text-muted-foreground sm:text-xs">
+                    Escanea para reclamar
+                  </p>
+                  <div className="mx-auto w-fit rounded-xl bg-white p-3 shadow-sm ring-1 ring-border/20">
+                    <img
+                      src={result.prize.claimQrCode}
+                      alt="QR de reclamo"
+                      className="h-40 w-40 object-contain sm:h-44 sm:w-44"
+                    />
+                  </div>
+                </div>
+
+                {/* Código de reclamo */}
+                {result.prize.claimCode && (
+                  <div className="rounded-xl border border-border/40 bg-muted/30 px-4 py-3">
+                    <p className="mb-2 text-[10px] uppercase tracking-[0.15em] text-muted-foreground sm:text-xs">
+                      Código de reclamo
+                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-sm font-semibold tracking-widest text-primary sm:text-base">
+                        {result.prize.claimCode}
+                      </span>
+                      <button
+                        onClick={handleCopy}
+                        className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        aria-label="Copiar código"
+                      >
+                        {copied ? (
+                          <svg
+                            className="h-4 w-4 text-emerald-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-center text-[11px] text-muted-foreground/60 sm:text-xs">
+                  Presenta este código en el local para reclamar tu premio
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== JACKPOT CTA CARD ===== */}
+        {onPlayGlobalPot && (
+          <div
+            className="overflow-hidden rounded-2xl border border-primary/20 bg-linear-to-b from-card to-card/60 p-5 shadow-lg opacity-0 animate-fade-in-up animation-delay-200"
+            style={{ boxShadow: "0 8px 32px oklch(0.72 0.15 85 / 0.06)" }}
+          >
+            {/* Header del card */}
+            <div className="mb-4 flex items-center gap-2">
+              <TrendingUp />
+              <p className="text-sm font-semibold text-foreground sm:text-base">
+                ¡Prueba tu suerte por el pozo!
+              </p>
+            </div>
+
+            {/* Monto del pozo */}
+            <div className="mb-4 text-center">
+              <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground sm:text-xs">
+                Pozo Global Acumulado
+              </p>
+              <p className="mt-1 font-display text-3xl font-bold tabular-nums text-primary sm:text-4xl gold-text">
                 {formatCurrency(result.newPotAmount)}
               </p>
             </div>
 
-            {/* Separador */}
-            <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-
             {/* Saldo y Costo */}
-            {user.isAuthenticated && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-muted/40 p-3 text-center">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
-                    Tu saldo
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-0.5 text-base font-semibold tabular-nums sm:text-lg font-display",
-                      canPlay
-                        ? "text-emerald-400"
-                        : "text-destructive"
-                    )}
-                  >
-                    {formatCurrency(user.balance)}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-muted/40 p-3 text-center">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
-                    Costo por jugada
-                  </p>
-                  <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground sm:text-lg font-display">
+            <div className="mb-4 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-muted/40 p-3 text-center">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
+                  Tu saldo
+                </p>
+                <p
+                  className={cn(
+                    "mt-0.5 font-display text-base font-semibold tabular-nums sm:text-lg",
+                    canPlay ? "text-emerald-400" : "text-destructive",
+                  )}
+                >
+                  {formatCurrency(user.balance)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3 text-center">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground sm:text-xs">
+                  Costo por jugada
+                </p>
+                <p className="mt-0.5 font-display text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                  {formatCurrency(spinCost)}
+                </p>
+              </div>
+            </div>
+
+            {/* Botón jugar por el pozo */}
+            {canPlay ? (
+              <Button
+                onClick={onPlayGlobalPot}
+                size="lg"
+                className="w-full font-display text-base sm:text-lg"
+              >
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Jugar por el pozo
+              </Button>
+            ) : (
+              <div className="rounded-xl border border-border/30 bg-muted/30 px-4 py-3 text-center">
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  Necesitas{" "}
+                  <span className="font-semibold text-primary">
                     {formatCurrency(spinCost)}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Mensaje de saldo suficiente */}
-            {canPlay && (
-              <div className="rounded-lg px-4 py-2.5 text-center"
-                style={{ background: "oklch(0.45 0.15 155 / 0.12)" }}
-              >
-                <p className="text-xs font-medium text-emerald-400 sm:text-sm">
-                  Tienes saldo suficiente para jugar
+                  </span>{" "}
+                  para jugar por el pozo global
                 </p>
-              </div>
-            )}
-
-            {/* Mensaje de premio ganado */}
-            {isWin && result.prize && (
-              <div className="rounded-lg px-4 py-3 text-center"
-                style={{ background: "oklch(0.72 0.15 85 / 0.1)" }}
-              >
-                <p className="text-xs font-medium text-primary sm:text-sm">
-                  {result.prize.description}
-                </p>
-                {result.prize.value ? (
-                  <p className="mt-1 text-lg font-bold text-primary font-display">
-                    +{formatCurrency(result.prize.value)}
-                  </p>
-                ) : null}
               </div>
             )}
           </div>
-        </div>
+        )}
 
-        {/* ===== BOTONES DE ACCIÓN ===== */}
+        {/* ===== BOTONES SECUNDARIOS ===== */}
         <div className="space-y-3 opacity-0 animate-fade-in-up animation-delay-200">
-          {/* Jugar por el Pozo Global */}
-          {canPlay && onPlayGlobalPot && (
-            <button
-              onClick={onPlayGlobalPot}
-              className="group relative w-full overflow-hidden rounded-xl px-6 py-4 text-base font-bold shadow-lg transition-all duration-300 hover:shadow-xl active:scale-[0.98] sm:text-lg font-display"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.72 0.15 85), oklch(0.68 0.17 70))",
-                color: "oklch(0.2 0.05 160)",
-                boxShadow: "0 4px 20px oklch(0.72 0.15 85 / 0.25)",
-              }}
-            >
-              <span className="relative z-10">Jugar por el Pozo Global</span>
-              {/* Shine effect */}
-              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            </button>
-          )}
-
           {/* Cargar más saldo */}
           {user.isAuthenticated && onLoadBalance && (
-            <button
+            <Button
               onClick={onLoadBalance}
-              className="w-full rounded-xl border-2 border-primary/30 px-6 py-3.5 text-sm font-medium text-primary transition-all duration-200 hover:border-primary/50 active:scale-[0.98] sm:text-base"
-              style={{ background: "oklch(0.72 0.15 85 / 0.08)" }}
+              variant="outline"
+              size="lg"
+              className="w-full border-primary/40 text-primary hover:border-primary hover:bg-primary/10 hover:text-primary"
             >
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
               Cargar más saldo
-            </button>
+            </Button>
           )}
 
           {/* Volver al inicio */}
-          <button
+          <Button
             onClick={onBackToHome}
-            className="w-full rounded-xl bg-muted/50 px-6 py-3 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-[0.98] sm:text-base"
+            variant="ghost"
+            className="w-full text-muted-foreground hover:text-white"
           >
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
             Volver al inicio
-          </button>
+          </Button>
         </div>
 
         {/* Nota para no autenticados */}
         {!user.isAuthenticated && (
-          <p className="text-center text-xs text-muted-foreground opacity-0 animate-fade-in-up animation-delay-300">
+          <p className="text-center text-xs text-muted-foreground/70 opacity-0 animate-fade-in-up animation-delay-300">
             Regístrate o inicia sesión para jugar por el pozo global
           </p>
         )}

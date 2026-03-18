@@ -317,6 +317,9 @@ export default function BarGamePage() {
                     type: lastResult.prize.type === "jackpot" ? "jackpot" : "local",
                     stock: 0,
                     isActive: true,
+                    imageUrl: lastResult.prize.imageUrl ?? undefined,
+                    claimCode: lastResult.prize.claimCode,
+                    claimQrCode: lastResult.prize.claimQrCode,
                   }
                 : undefined,
               newPotAmount: pool?.currentAmount ?? 0,

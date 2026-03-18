@@ -28,6 +28,9 @@ export interface Prize {
   value?: number;
   stock: number; // 0 = ilimitado
   isActive: boolean;
+  imageUrl?: string;
+  claimCode?: string;
+  claimQrCode?: string;
 }
 
 export interface Bar {

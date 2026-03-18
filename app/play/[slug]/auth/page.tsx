@@ -13,7 +13,7 @@ interface BarPublicInfo {
   name: string;
   slug: string;
   logoUrl: string | null;
-  frePlaysPerDay: number;
+  freePlaysPerDay: number;
   isActive: boolean;
 }
 
@@ -139,7 +139,7 @@ export default function BarAuthPage() {
       barName={barInfo.name}
       barSubtitle="Barra & Cerveza"
       barImageUrl={barInfo.logoUrl}
-      freeSpins={barInfo.frePlaysPerDay}
+      freeSpins={barInfo.freePlaysPerDay}
       jackpotAmount={globalPool}
       activePlayers={47}
       onAuthSuccess={handleAuthSuccess}

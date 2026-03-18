@@ -53,6 +53,7 @@ export interface PlayResultResponse {
     value?: number;
     imageUrl?: string;
     claimCode?: string;
+    claimQrCode?: string;
   } | null;
   session: {
     playsRemaining: number;

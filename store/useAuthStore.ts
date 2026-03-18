@@ -16,6 +16,7 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
+  isInitializing: boolean;
   isLoading: boolean;
   error: string | null;
 
@@ -43,6 +44,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      isInitializing: true,
       isLoading: false,
       error: null,
 
@@ -118,6 +120,7 @@ export const useAuthStore = create<AuthState>()(
           set({
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
+            isAuthenticated: true,
           });
 
           scheduleTokenRefresh(data.expiresIn);
@@ -180,14 +183,18 @@ export const useAuthStore = create<AuthState>()(
 
             if (expiresIn > 0) {
               scheduleTokenRefresh(expiresIn);
-              set({ isAuthenticated: true });
+              set({ isAuthenticated: true, isInitializing: false });
             } else {
               await get().refreshAccessToken();
+              set({ isInitializing: false });
             }
           } catch (error) {
             console.error("Error al inicializar autenticación:", error);
-            get().logout();
+            await get().logout();
+            set({ isInitializing: false });
           }
+        } else {
+          set({ isInitializing: false });
         }
       },
 
@@ -254,6 +261,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
+        // isInitializing NO se persiste: siempre arranca en true para bloquear el render
       }),
     },
   ),
