@@ -56,10 +56,10 @@ export function LoginScreen({
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4 lg:gap-8">
       {/* Header */}
       <div className="flex flex-col gap-2 opacity-0 animate-fade-in-up">
-        <h2 className="font-serif text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
+        <h2 className="font-serif text-2xl lg:text-3xl xl:text-4xl font-bold text-foreground tracking-tight">
           Iniciar Sesión
         </h2>
         <p className="text-muted-foreground text-sm font-sans leading-relaxed">
@@ -68,7 +68,7 @@ export function LoginScreen({
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3 lg:gap-5">
         {/* General error */}
         {error && (
           <div className="bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3 opacity-0 animate-fade-in-up">
@@ -196,7 +196,7 @@ export function LoginScreen({
       </form>
 
       {/* Switch to register */}
-      <div className="opacity-0 animate-fade-in-up animation-delay-400 flex flex-col items-center gap-5">
+      <div className="opacity-0 animate-fade-in-up animation-delay-400 flex flex-col items-center gap-3 lg:gap-5">
         <div className="flex items-center gap-4 w-full">
           <div className="h-px flex-1 bg-border/30" />
           <span className="text-muted-foreground/50 text-xs font-sans uppercase tracking-wider">
