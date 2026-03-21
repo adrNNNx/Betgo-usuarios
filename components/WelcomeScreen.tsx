@@ -14,6 +14,7 @@ import {
   Gift,
   Users,
   ShieldCheck,
+  DollarSign,
 } from "lucide-react";
 import { BetgoFooter } from "@/components/BetgoFooter";
 
@@ -142,7 +143,6 @@ export function WelcomeScreen({
         {/* Mobile: single column | Desktop: 3-column grid */}
         <div className="w-full max-w-md lg:max-w-5xl xl:max-w-6xl flex flex-col gap-4 lg:gap-5">
           <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:gap-5 lg:items-stretch">
-
             {/* ===== CARD 1: RULETA GRATIS ===== */}
             <section className="opacity-0 animate-fade-in-up animation-delay-100">
               <div className="h-full rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-4 sm:p-5 lg:p-6 flex flex-col">
@@ -197,7 +197,7 @@ export function WelcomeScreen({
                 </div>
 
                 {/* Button */}
-                <div className="mt-auto lg:mt-4">
+                <div className="mt-auto">
                   <Button
                     onClick={onPlayClick}
                     disabled={!hasFreeSpins}
@@ -208,10 +208,9 @@ export function WelcomeScreen({
                         : "bg-muted/80 text-muted-foreground cursor-not-allowed",
                     )}
                   >
-                    <span className="uppercase tracking-wider">
-                      {hasFreeSpins
-                        ? `Jugar gratis (${freeSpinsAvailable})`
-                        : "Sin jugadas"}
+                    <span className="relative z-10 flex items-center justify-center gap-2 uppercase tracking-wider">
+                      <Trophy className="h-4 w-4" />
+                      {hasFreeSpins ? "Jugar gratis" : "Sin jugadas"}
                     </span>
                     {hasFreeSpins && (
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer pointer-events-none" />
@@ -236,129 +235,113 @@ export function WelcomeScreen({
               >
                 <div className="absolute inset-0 bg-linear-to-t from-primary/4 to-transparent pointer-events-none" />
 
-                <div className="relative flex flex-col h-full">
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                        <Zap className="h-4.5 w-4.5 lg:h-5 lg:w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">
-                          Pozo Global
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          Acumulado actual
-                        </p>
-                      </div>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                      <Zap className="h-4.5 w-4.5 lg:h-5 lg:w-5 text-primary" />
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-400">
-                      <span className="relative flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                      </span>
-                      <span className="font-medium uppercase tracking-wider text-[10px]">
-                        En vivo
-                      </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        Pozo Global
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Acumulado actual
+                      </p>
                     </div>
                   </div>
-
-                  {/* Jackpot amount */}
-                  <div className="rounded-xl bg-muted/40 border border-border/40 p-4 mb-4">
-                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
-                      Premio mayor
-                    </p>
-                    {/* Desktop: smaller font to avoid cramping in 1/3 column */}
-                    <p className="text-2xl sm:text-3xl lg:text-2xl xl:text-3xl font-bold tabular-nums gold-text font-display">
-                      {formatCurrency(pool.currentAmount)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" />
-                      Crece con cada jugada
-                    </p>
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                    </span>
+                    <span className="font-medium uppercase tracking-wider text-[10px]">
+                      En vivo
+                    </span>
                   </div>
+                </div>
 
-                  {/* Cost row — mobile: single line | desktop: 2-col with players */}
-                  <div className="mb-4 px-1">
-                    <div className="lg:hidden flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Banknote className="h-5 w-5 text-primary" />
-                      <span>
-                        Costo:{" "}
-                        <span className="font-semibold text-foreground">
-                          {formatCurrency(pool.costPerPlay)}
-                        </span>
+                {/* Jackpot amount */}
+                <div className="rounded-xl bg-muted/40 border border-border/40 p-4 mb-4">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
+                    Premio mayor
+                  </p>
+                  {/* Desktop: smaller font to avoid cramping in 1/3 column */}
+                  <p className="text-2xl sm:text-3xl lg:text-2xl xl:text-3xl font-bold tabular-nums gold-text font-display">
+                    {formatCurrency(pool.currentAmount)}
+                  </p>
+                </div>
+
+                {/* Cost row — mobile: single line | desktop: 2-col with players */}
+                <div className="mb-4 px-1">
+                  <div className="lg:hidden flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Banknote className="h-5 w-5 text-primary" />
+                    <span>
+                      Costo:{" "}
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(pool.costPerPlay)}
                       </span>
+                    </span>
+                  </div>
+                  <div className="hidden lg:grid gap-2">
+                    {/* Pool info box */}
+                    <div className="rounded-xl border border-border/40 bg-muted/20 p-3 mb-4">
+                      <p className="text-xs font-semibold text-foreground">
+                        Juega por el pozo
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Cada jugada cuesta {formatCurrency(pool.costPerPlay)} y
+                        acumula al pozo global
+                      </p>
                     </div>
-                    <div className="hidden lg:grid grid-cols-2 gap-2">
+                    {pool.activePlayers != null && (
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Costo
+                          Jugando
                         </p>
-                        <p className="text-sm font-semibold text-foreground">
-                          {formatCurrency(pool.costPerPlay)}
+                        <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-primary" />
+                          {pool.activePlayers}
                         </p>
                       </div>
-                      {pool.activePlayers != null && (
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Jugando
-                          </p>
-                          <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                            <Users className="h-3.5 w-3.5 text-primary" />
-                            {pool.activePlayers}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
+                </div>
 
-                  {/* Play button */}
-                  <div className="mt-auto">
-                    <button
-                      onClick={onPlayPoolClick}
-                      disabled={!canPlayPool}
-                      className={cn(
-                        "group relative w-full overflow-hidden rounded-xl px-5 py-3.5 sm:py-4 text-sm sm:text-base font-bold transition-all duration-300 active:scale-[0.98]",
-                        canPlayPool
-                          ? "shadow-lg hover:shadow-xl"
-                          : "opacity-50 cursor-not-allowed",
-                      )}
-                      style={{
-                        background: canPlayPool
-                          ? "linear-gradient(135deg, oklch(0.72 0.15 85), oklch(0.68 0.17 70))"
-                          : "oklch(0.32 0.03 160)",
-                        color: canPlayPool
-                          ? "oklch(0.2 0.05 160)"
-                          : "oklch(0.55 0.01 160)",
-                        boxShadow: canPlayPool
-                          ? "0 4px 16px oklch(0.72 0.15 85 / 0.25)"
-                          : "none",
-                      }}
-                    >
-                      <span className="relative z-10 flex items-center justify-center gap-2">
-                        <Zap className="h-4 w-4" />
-                        <span className="uppercase tracking-wider">
-                          Jugar por el Pozo
-                        </span>
-                        <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                {/* Play button */}
+                <div className="mt-auto">
+                  <button
+                    onClick={onPlayPoolClick}
+                    disabled={!canPlayPool}
+                    className={cn(
+                      "group relative w-full overflow-hidden rounded-xl px-5 py-3.5 sm:py-4 text-sm sm:text-base font-bold transition-all duration-300 active:scale-[0.98]",
+                      canPlayPool
+                        ? "shadow-lg hover:shadow-xl"
+                        : "opacity-50 cursor-not-allowed",
+                    )}
+                    style={{
+                      background: canPlayPool
+                        ? "linear-gradient(135deg, oklch(0.72 0.15 85), oklch(0.68 0.17 70))"
+                        : "oklch(0.32 0.03 160)",
+                      color: canPlayPool
+                        ? "oklch(0.2 0.05 160)"
+                        : "oklch(0.55 0.01 160)",
+                      boxShadow: canPlayPool
+                        ? "0 4px 16px oklch(0.72 0.15 85 / 0.25)"
+                        : "none",
+                    }}
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      <span className="uppercase tracking-wider">
+                        Jugar por el Pozo
                       </span>
-                      {canPlayPool && (
-                        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                      )}
-                    </button>
-
-                    <p className="text-center text-xs text-muted-foreground mt-2.5">
-                      Tu saldo:{" "}
-                      <span
-                        className={cn(
-                          "font-semibold",
-                          canPlayPool ? "text-emerald-400" : "text-destructive",
-                        )}
-                      >
-                        {formatCurrency(userBalance)}
-                      </span>
-                    </p>
-                  </div>
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                    {canPlayPool && (
+                      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                    )}
+                  </button>
                 </div>
               </div>
             </section>
@@ -415,20 +398,8 @@ export function WelcomeScreen({
                     {formatCurrency(userBalance)}
                   </p>
                 </div>
-
-                {/* Pool info box */}
-                <div className="rounded-xl border border-border/40 bg-muted/20 p-3 mb-4">
-                  <p className="text-xs font-semibold text-foreground">
-                    Juega por el pozo
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Cada jugada cuesta {formatCurrency(pool.costPerPlay)} y
-                    acumula al pozo global
-                  </p>
-                </div>
-
                 {/* Features */}
-                <div className="space-y-1.5 flex-1">
+                <div className="space-y-1.5">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
                     <span>Recarga rápida y segura</span>
@@ -442,7 +413,7 @@ export function WelcomeScreen({
                 {/* Button */}
                 <button
                   onClick={onLoadBalanceClick}
-                  className="mt-4 w-full h-11 font-bold rounded-xl border border-border bg-card hover:bg-muted/50 text-foreground transition-colors flex items-center justify-center gap-2"
+                  className="mt-auto w-full h-11 font-bold rounded-xl border border-primary/40 bg-card hover:bg-muted/50 text-primary transition-colors flex items-center justify-center gap-2"
                 >
                   <Banknote className="h-4 w-4" />
                   <span className="uppercase tracking-wider text-sm">
