@@ -314,7 +314,7 @@ export function WelcomeScreen({
                     onClick={onPlayPoolClick}
                     disabled={!canPlayPool}
                     className={cn(
-                      "group relative w-full overflow-hidden rounded-xl px-5 py-3.5 sm:py-4 text-sm sm:text-base font-bold transition-all duration-300 active:scale-[0.98]",
+                      "group relative w-full overflow-hidden rounded-xl px-5 h-11 sm:h-12 text-sm sm:text-base font-bold transition-all duration-300 active:scale-[0.98]",
                       canPlayPool
                         ? "shadow-lg hover:shadow-xl"
                         : "opacity-50 cursor-not-allowed",
@@ -413,7 +413,7 @@ export function WelcomeScreen({
                 {/* Button */}
                 <button
                   onClick={onLoadBalanceClick}
-                  className="mt-auto w-full h-11 font-bold rounded-xl border border-primary/40 bg-card hover:bg-muted/50 text-primary transition-colors flex items-center justify-center gap-2"
+                  className="mt-auto w-full h-11 sm:h-12 font-bold rounded-xl border border-primary/40 bg-card hover:bg-muted/50 text-primary transition-colors flex items-center justify-center gap-2"
                 >
                   <Banknote className="h-4 w-4" />
                   <span className="uppercase tracking-wider text-sm">
