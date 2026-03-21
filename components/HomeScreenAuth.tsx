@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { LoginScreen } from "@/components/auth/LoginScreen";
 import { RegisterScreen } from "@/components/auth/RegisterScreen";
+import { BetgoFooter } from "@/components/BetgoFooter";
 
 interface HomeScreenAuthProps {
   barName?: string;
@@ -154,16 +155,7 @@ export function HomeScreenAuth({
           </div>
 
           {/* Footer */}
-          <div className="flex flex-col items-center gap-2 mt-4">
-            <div className="flex items-center gap-3">
-              <div className="h-px w-12 bg-border/20" />
-              <Sparkles className="h-3 w-3 text-primary/30" />
-              <div className="h-px w-12 bg-border/20" />
-            </div>
-            <p className="text-muted-foreground/40 text-[10px] font-sans tracking-wider">
-              Powered by BetGO
-            </p>
-          </div>
+          <BetgoFooter className="mt-4" />
         </div>
       </div>
 
@@ -201,12 +193,7 @@ export function HomeScreenAuth({
         <PozoCard jackpotAmount={jackpotAmount} activePlayers={activePlayers} compact />
 
         {/* Footer */}
-        <div className="flex items-center justify-center gap-2 mt-2">
-          <Sparkles className="h-3 w-3 text-primary/30" />
-          <p className="text-muted-foreground/40 text-[10px] font-sans tracking-wider">
-            Powered by BetGO
-          </p>
-        </div>
+        <BetgoFooter showDivider={false} className="mt-2" />
       </div>
 
     </div>

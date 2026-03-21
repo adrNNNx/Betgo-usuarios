@@ -254,6 +254,11 @@ export default function BarGamePage() {
               isActive: true,
             }}
             freeSpinsAvailable={freePlaysRemaining}
+            pool={{
+              currentAmount: pool?.currentAmount ?? 0,
+              costPerPlay: pool?.costPerPlay ?? 1000,
+            }}
+            userBalance={user?.balance ?? 0}
             onPlayClick={() => {
               setServerResults(null);
               setServerResultInfo(null);
@@ -261,6 +266,8 @@ export default function BarGamePage() {
               clearResult();
               transitionTo("playing-free");
             }}
+            onPlayPoolClick={handlePlayGlobalPot}
+            onLoadBalanceClick={() => toast.info("Función de carga de saldo")}
           />
         );
 
