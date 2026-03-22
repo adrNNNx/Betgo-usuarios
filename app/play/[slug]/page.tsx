@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ResultScreen } from "@/components/ResultScreen";
-import { GlobalPotScreen } from "@/components/GlobalPotScreen";
 import { SlotMachine } from "@/components/slot-machine";
 
 // Hooks
@@ -21,8 +20,7 @@ import { useBarSymbols, mapServerResultToSlotSymbols } from "@/hooks/use-bar-sym
 
 // Types
 import type { SlotSymbol } from "@/types/slot-machine-type";
-import type { GameResult, SymbolType } from "@/types/game";
-import { formatCurrency } from "@/lib/game-logic";
+import type { SymbolType } from "@/types/game";
 
 type GameScreen = "welcome" | "playing-free" | "result" | "playing-global";
 
@@ -149,9 +147,41 @@ export default function BarGamePage() {
     }
   }, [bar, session, slug, symbols, play]);
 
-  // ==================== HANDLER: ANIMACIÓN COMPLETA ====================
+  // ==================== HANDLER: GIRAR (POZO GLOBAL) ====================
+  const handleRequestPoolSpin = useCallback(async () => {
+    if (!bar || !pool) return;
+
+    setSpinError(null);
+
+    try {
+      const result = await play("pool", slug);
+
+      const resultSymbols = mapServerResultToSlotSymbols(
+        result.symbolDetails,
+        symbols
+      );
+      setServerResults(resultSymbols);
+      setServerResultInfo({
+        isWinner: result.isWinner,
+        prize: result.prize
+          ? {
+              name: result.prize.name,
+              value: result.prize.value,
+              imageUrl: result.prize.imageUrl ?? null,
+              claimCode: result.prize.claimCode ?? null,
+            }
+          : null,
+      });
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message || "Error al realizar la jugada";
+      toast.error(message);
+      setSpinError(message);
+    }
+  }, [bar, pool, slug, symbols, play]);
+
+  // ==================== HANDLER: ANIMACIÓN COMPLETA (FREE) ====================
   const handleAnimationComplete = useCallback(() => {
-    // Leer siempre del store para evitar closures stale
     const { session: currentSession, lastResult: currentLastResult } = useGameStore.getState();
     const remaining = currentSession?.playsRemaining ?? 0;
 
@@ -160,18 +190,35 @@ export default function BarGamePage() {
         transitionTo("result");
       }, 3500);
     } else if (remaining <= 0) {
-      // NO GANÓ y NO tiene más jugadas → ir al resultado
-      // SlotMachine ya esperó ~1.7s (aterrizaje + mensaje visible),
-      // solo se agrega la transición suave de la pantalla
       transitionTo("result");
     } else {
-      // NO GANÓ pero TIENE jugadas restantes → quedarse en la máquina
-      // Limpiar estado para que pueda girar de nuevo
       setServerResults(null);
       setServerResultInfo(null);
       clearResult();
     }
   }, [transitionTo, clearResult]);
+
+  // ==================== HANDLER: ANIMACIÓN COMPLETA (POOL) ====================
+  const handlePoolAnimationComplete = useCallback(() => {
+    const { lastResult: currentLastResult } = useGameStore.getState();
+    const currentBalance = useAuthStore.getState().user?.balance ?? 0;
+    const cost = pool?.costPerPlay ?? 0;
+
+    if (currentLastResult?.isWinner) {
+      // GANÓ → siempre ir al resultado
+      setTimeout(() => {
+        transitionTo("result");
+      }, 3500);
+    } else if (currentBalance < cost) {
+      // NO GANÓ y NO tiene saldo → ir al resultado
+      transitionTo("result");
+    } else {
+      // NO GANÓ pero TIENE saldo → quedarse en la máquina
+      setServerResults(null);
+      setServerResultInfo(null);
+      clearResult();
+    }
+  }, [transitionTo, clearResult, pool]);
 
   // ==================== HANDLER: JUGAR POR POZO GLOBAL ====================
   const handlePlayGlobalPot = () => {
@@ -179,6 +226,11 @@ export default function BarGamePage() {
       toast.error("Saldo insuficiente para jugar por el pozo global");
       return;
     }
+    // Limpiar estado de la partida anterior
+    setServerResults(null);
+    setServerResultInfo(null);
+    setSpinError(null);
+    clearResult();
     transitionTo("playing-global");
   };
 
@@ -189,12 +241,6 @@ export default function BarGamePage() {
     setServerResultInfo(null);
     setSpinError(null);
     clearResult();
-  };
-
-  // ==================== HANDLER: RESULTADO POZO GLOBAL ====================
-  const handleGlobalPotResult = (result: GameResult) => {
-    // Adaptar el resultado del GlobalPotScreen al formato esperado
-    transitionTo("result");
   };
 
   // ==================== HANDLER: LOGOUT ====================
@@ -354,21 +400,41 @@ export default function BarGamePage() {
 
       case "playing-global":
         return (
-          <GlobalPotScreen
-            user={{
-              id: user?.id || "",
-              isAuthenticated: true,
-              balance: user?.balance || 0,
-              freeSpinsUsed: session?.playsUsed ?? 0,
-              freeSpinsAvailable: freePlaysRemaining,
-              name: user?.name ?? undefined,
-              email: user?.email ?? undefined,
-            }}
-            potAmount={pool?.currentAmount ?? 0}
-            spinCost={pool?.costPerPlay ?? 2000}
-            onResult={handleGlobalPotResult}
-            onBack={handleBackToHome}
-          />
+          <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
+            <SlotMachine
+              config={{
+                title: bar.name,
+                barLogoUrl: bar.logoUrl,
+                currency: "Gs.",
+                jackpotAmount: pool?.currentAmount ?? 0,
+              }}
+              mode="pool"
+              symbols={symbols}
+              usingCustomSymbols={usingCustomSymbols}
+              freeSpinsRemaining={0}
+              userBalance={user?.balance ?? 0}
+              costPerPlay={pool?.costPerPlay ?? 1000}
+              onRequestSpin={handleRequestPoolSpin}
+              serverResults={serverResults}
+              serverResultInfo={serverResultInfo}
+              onAnimationComplete={handlePoolAnimationComplete}
+              serverError={spinError}
+            />
+
+            {/* Botón volver */}
+            <button
+              onClick={handleBackToHome}
+              className="mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Volver al inicio
+            </button>
+
+            {/* Decoraciones */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+              <div className="absolute top-20 left-10 w-32 h-32 bg-yellow-400/10 rounded-full blur-3xl shimmer" />
+              <div className="absolute bottom-20 right-10 w-40 h-40 bg-green-400/10 rounded-full blur-3xl shimmer" />
+            </div>
+          </div>
         );
 
       default:

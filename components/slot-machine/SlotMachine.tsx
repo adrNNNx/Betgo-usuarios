@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState, useRef } from "react";
 
 import { useSlotDimensions } from "@/hooks/use-slot-dimensions";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
+import { formatCurrency } from "@/lib/game-logic";
+import { cn } from "@/lib/utils";
 
 import { getRandomSymbol, checkWin } from "./symbols";
 import {
@@ -16,27 +18,32 @@ import {
 import { JackpotDisplay } from "./JackpotDisplay";
 import { SlotReel } from "./SlotReel";
 
+// ==================== TIPOS ====================
+
+type SlotMode = "free" | "pool";
+
 interface SlotMachineProps {
   config?: Partial<SlotMachineConfig>;
-  /** Símbolos disponibles (del hook useBarSymbols) */
   symbols: SlotSymbol[];
-  /** Si los símbolos están cargando */
   symbolsLoading?: boolean;
-  /** Si usa símbolos custom del bar */
   usingCustomSymbols?: boolean;
-  /** Jugadas gratuitas restantes */
+
+  /**
+   * Modo de juego:
+   *  - "free": jugadas gratuitas, muestra contador de jugadas restantes
+   *  - "pool": jugadas pagas por el pozo, muestra saldo y costo
+   */
+  mode?: SlotMode;
+
+  /** Jugadas gratuitas restantes (modo free) */
   freeSpinsRemaining: number;
-  /**
-   * Callback cuando el usuario quiere girar.
-   * El padre debe llamar a la API y luego setear serverResults.
-   */
+  /** Saldo del usuario (modo pool) */
+  userBalance?: number;
+  /** Costo por jugada (modo pool) */
+  costPerPlay?: number;
+
   onRequestSpin?: () => void;
-  /**
-   * Resultado del servidor: los 5 símbolos finales.
-   * Cuando se setea, la máquina arranca la animación y para en estos símbolos.
-   */
   serverResults?: SlotSymbol[] | null;
-  /** Info del resultado del servidor */
   serverResultInfo?: {
     isWinner: boolean;
     prize?: {
@@ -46,9 +53,7 @@ interface SlotMachineProps {
       claimCode?: string | null;
     } | null;
   } | null;
-  /** Callback cuando termina toda la animación */
   onAnimationComplete?: () => void;
-  /** Si hay un error del servidor */
   serverError?: string | null;
 }
 
@@ -57,7 +62,10 @@ export function SlotMachine({
   symbols,
   symbolsLoading = false,
   usingCustomSymbols = false,
+  mode = "free",
   freeSpinsRemaining,
+  userBalance = 0,
+  costPerPlay = 0,
   onRequestSpin,
   serverResults = null,
   serverResultInfo = null,
@@ -76,7 +84,10 @@ export function SlotMachine({
   } = config;
 
   const dims = useSlotDimensions();
+  const isPoolMode = mode === "pool";
+  const canAfford = userBalance >= costPerPlay;
 
+  // ==================== ESTADO ====================
   const [spinState, setSpinState] = useState<SpinState>("idle");
   const [finalSymbols, setFinalSymbols] = useState<SlotSymbol[]>([]);
   const [results, setResults] = useState<SlotSymbol[]>([]);
@@ -90,16 +101,17 @@ export function SlotMachine({
   const stoppedCount = useRef(0);
   const isWaitingForServer = useRef(false);
   const onAnimationCompleteRef = useRef(onAnimationComplete);
-  const loseTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  const winTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
+  const loseTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const winTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     onAnimationCompleteRef.current = onAnimationComplete;
   }, [onAnimationComplete]);
+
+  // Determinar si se puede girar
+  const canSpinNow = isPoolMode
+    ? canAfford && canSpin
+    : freeSpinsRemaining > 0 && canSpin;
 
   // ==================== MANEJAR RESULTADO DEL SERVIDOR ====================
   useEffect(() => {
@@ -114,7 +126,6 @@ export function SlotMachine({
     }
   }, [serverResults]);
 
-  // ==================== MANEJAR ERROR DEL SERVIDOR ====================
   useEffect(() => {
     if (serverError && isWaitingForServer.current) {
       isWaitingForServer.current = false;
@@ -124,7 +135,7 @@ export function SlotMachine({
 
   // ==================== CLICK EN GIRAR ====================
   const handleSpin = useCallback(() => {
-    if (spinState !== "idle" || freeSpinsRemaining <= 0 || !canSpin) return;
+    if (spinState !== "idle" || !canSpinNow) return;
 
     clearTimeout(winTimerRef.current);
     clearTimeout(loseTimerRef.current);
@@ -135,26 +146,17 @@ export function SlotMachine({
     setResults([]);
 
     if (onRequestSpin) {
-      // Modo servidor: pedir al padre que llame a la API
       isWaitingForServer.current = true;
       setSpinState("spinning");
       onRequestSpin();
     } else {
-      // Modo local (fallback): generar resultado localmente
       const newFinals = Array.from({ length: reelCount }, () =>
         getRandomSymbol(symbols),
       );
       setFinalSymbols(newFinals);
       setSpinState("spinning");
     }
-  }, [
-    spinState,
-    freeSpinsRemaining,
-    canSpin,
-    reelCount,
-    symbols,
-    onRequestSpin,
-  ]);
+  }, [spinState, canSpinNow, reelCount, symbols, onRequestSpin]);
 
   // ==================== CUANDO UN REEL PARA ====================
   const handleReelStopped = useCallback(() => {
@@ -169,7 +171,6 @@ export function SlotMachine({
   useEffect(() => {
     if (results.length === reelCount && results.length > 0) {
       if (serverResultInfo) {
-        // Usar resultado del servidor
         const matchSymbol = results[0];
         const allMatch = results.every((s) => s.id === matchSymbol.id);
         setWinInfo({
@@ -189,7 +190,6 @@ export function SlotMachine({
             }, 3000);
           }, 1900);
         } else {
-          // Limpiar cualquier timer previo y esperar la animación de aterrizaje
           clearTimeout(loseTimerRef.current);
           loseTimerRef.current = setTimeout(() => {
             setShowLoseMessage(true);
@@ -199,7 +199,6 @@ export function SlotMachine({
           }, 1450);
         }
       } else {
-        // Modo local
         const win = checkWin(results);
         setWinInfo(win);
         if (win.isWin) {
@@ -225,11 +224,7 @@ export function SlotMachine({
 
   const isSpinning = spinState === "spinning";
   const isDisabled =
-    isSpinning ||
-    freeSpinsRemaining <= 0 ||
-    !canSpin ||
-    spinState === "won" ||
-    isWaitingForServer.current;
+    isSpinning || !canSpinNow || spinState === "won" || isWaitingForServer.current;
 
   // ==================== LOADING ====================
   if (symbolsLoading) {
@@ -238,7 +233,7 @@ export function SlotMachine({
         <div className="flex flex-col items-center gap-3 text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">
-            Cargando configuración del bar...
+            Cargando configuración...
           </p>
         </div>
       </div>
@@ -249,23 +244,89 @@ export function SlotMachine({
   return (
     <>
       <div className="flex w-full max-w-2xl flex-col items-center gap-3 px-3 sm:gap-6 sm:px-0">
-        {/* Bar Logo + Title */}
-        <div
-          className="rounded-xl border px-5 py-2 text-center sm:px-8 sm:py-3 backdrop-blur-md animate-fade-in-up"
-          style={{
-            borderColor: "oklch(0.35 0.02 160)",
-            background: "oklch(0.26 0.04 160 / 0.9)",
-          }}
-        >
-          {barLogoUrl ? (
-            <div className="flex flex-col items-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden ring-2 ring-primary/30 shadow-lg">
-                <img
-                  src={barLogoUrl}
-                  alt={title}
-                  className="w-full h-full object-cover"
-                />
+
+        {/* ===== HEADER AREA ===== */}
+        {isPoolMode ? (
+          /* --- POOL MODE HEADER --- */
+          <div className="flex flex-col items-center gap-3 w-full animate-fade-in-up">
+            {/* Pool badge */}
+            <div
+              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 sm:px-5 sm:py-2"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.72 0.15 85 / 0.15), oklch(0.72 0.15 85 / 0.05))",
+                border: "1px solid oklch(0.72 0.15 85 / 0.3)",
+              }}
+            >
+              <Zap className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-primary">
+                Pozo Global
+              </span>
+              {/* Live dot */}
+              <span className="relative flex h-2 w-2 ml-1">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+            </div>
+
+            {/* Bar name (smaller in pool mode) */}
+            {barLogoUrl ? (
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-primary/20">
+                  <img src={barLogoUrl} alt={title} className="w-full h-full object-cover" />
+                </div>
+                <span className="text-sm text-muted-foreground font-medium">{title}</span>
               </div>
+            ) : (
+              <span className="text-sm text-muted-foreground font-medium">{title}</span>
+            )}
+
+            {/* Balance + Cost strip */}
+            <div className="flex items-center gap-4 text-xs sm:text-sm">
+              <span className="text-muted-foreground">
+                Saldo:{" "}
+                <span className={cn("font-bold", canAfford ? "text-emerald-400" : "text-destructive")}>
+                  {formatCurrency(userBalance)}
+                </span>
+              </span>
+              <span className="text-border">|</span>
+              <span className="text-muted-foreground">
+                Costo:{" "}
+                <span className="font-bold text-foreground">
+                  {formatCurrency(costPerPlay)}
+                </span>
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* --- FREE MODE HEADER (original) --- */
+          <div
+            className="rounded-xl border px-5 py-2 text-center sm:px-8 sm:py-3 backdrop-blur-md animate-fade-in-up"
+            style={{
+              borderColor: "oklch(0.35 0.02 160)",
+              background: "oklch(0.26 0.04 160 / 0.9)",
+            }}
+          >
+            {barLogoUrl ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden ring-2 ring-primary/30 shadow-lg">
+                  <img
+                    src={barLogoUrl}
+                    alt={title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <h1 className="text-base font-black uppercase tracking-wider sm:text-xl text-primary font-display">
+                    {title}
+                  </h1>
+                  {subtitle && (
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] sm:text-xs text-muted-foreground">
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
               <div>
                 <h1 className="text-base font-black uppercase tracking-wider sm:text-xl text-primary font-display">
                   {title}
@@ -276,26 +337,15 @@ export function SlotMachine({
                   </p>
                 )}
               </div>
-            </div>
-          ) : (
-            <div>
-              <h1 className="text-base font-black uppercase tracking-wider sm:text-xl text-primary font-display">
-                {title}
-              </h1>
-              {subtitle && (
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] sm:text-xs text-muted-foreground">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          )}
+            )}
 
-          {usingCustomSymbols && (
-            <p className="mt-1 text-[8px] text-primary/60 uppercase tracking-wider">
-              Símbolos personalizados • {symbols.length} configurados
-            </p>
-          )}
-        </div>
+            {usingCustomSymbols && (
+              <p className="mt-1 text-[8px] text-primary/60 uppercase tracking-wider">
+                Símbolos personalizados • {symbols.length} configurados
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Jackpot Display */}
         {jackpotAmount > 0 && (
@@ -308,7 +358,7 @@ export function SlotMachine({
           </div>
         )}
 
-        {/* Machine body */}
+        {/* ===== MACHINE BODY (identical for both modes) ===== */}
         <div className="relative w-full animate-fade-in-up animation-delay-200">
           {/* Gold accent top */}
           <div
@@ -334,7 +384,6 @@ export function SlotMachine({
                 : "0 0 40px oklch(0.72 0.15 85 / 0.08), inset 0 2px 0 oklch(1 0 0 / 0.03), 0 20px 50px oklch(0 0 0 / 0.5)",
             }}
           >
-            {/* Inner frame */}
             <div
               className="flex items-center rounded-lg p-2 sm:rounded-xl sm:p-4"
               style={{
@@ -422,7 +471,7 @@ export function SlotMachine({
           />
         </div>
 
-        {/* Lose message - stays until next spin */}
+        {/* ===== LOSE MESSAGE ===== */}
         <div
           className="text-center overflow-hidden transition-all duration-500 ease-out"
           style={{
@@ -442,7 +491,7 @@ export function SlotMachine({
             <span className="text-sm sm:text-base text-muted-foreground">
               No fue esta vez
             </span>
-            {freeSpinsRemaining > 0 && (
+            {(isPoolMode ? canAfford : freeSpinsRemaining > 0) && (
               <>
                 <span className="text-muted-foreground/40">•</span>
                 <span className="text-sm sm:text-base text-primary font-medium">
@@ -453,36 +502,94 @@ export function SlotMachine({
           </div>
         </div>
 
-        {/* Spin Button */}
-        <Button
-          onClick={handleSpin}
-          disabled={isDisabled}
-          size="lg"
-          className="mt-1 w-full max-w-xs uppercase font-black tracking-wider sm:mt-2 sm:w-auto sm:px-12 sm:py-6 text-base sm:text-lg relative overflow-hidden group animate-fade-in-up animation-delay-300"
-        >
-          {isSpinning ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Girando...
+        {/* ===== SPIN BUTTON ===== */}
+        {isPoolMode ? (
+          /* --- POOL BUTTON --- */
+          <button
+            onClick={handleSpin}
+            disabled={isDisabled}
+            className={cn(
+              "group relative mt-1 w-full max-w-xs overflow-hidden rounded-xl px-6 py-3.5 sm:mt-2 sm:py-4 text-sm sm:text-base font-bold transition-all duration-300 active:scale-[0.98] animate-fade-in-up animation-delay-300",
+              !isDisabled ? "shadow-lg hover:shadow-xl" : "opacity-50 cursor-not-allowed",
+            )}
+            style={{
+              background: !isDisabled
+                ? "linear-gradient(135deg, oklch(0.72 0.15 85), oklch(0.68 0.17 70))"
+                : "oklch(0.32 0.03 160)",
+              color: !isDisabled
+                ? "oklch(0.2 0.05 160)"
+                : "oklch(0.55 0.01 160)",
+              boxShadow: !isDisabled
+                ? "0 4px 16px oklch(0.72 0.15 85 / 0.25)"
+                : "none",
+            }}
+          >
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              {isSpinning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="uppercase tracking-wider">Girando...</span>
+                </>
+              ) : spinState === "won" ? (
+                <span className="uppercase tracking-wider">¡Ganaste!</span>
+              ) : !canAfford ? (
+                <span className="uppercase tracking-wider">Saldo insuficiente</span>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" />
+                  <span className="uppercase tracking-wider">
+                    Jugar • {formatCurrency(costPerPlay)}
+                  </span>
+                </>
+              )}
             </span>
-          ) : spinState === "won" ? (
-            "¡Ganaste!"
-          ) : freeSpinsRemaining <= 0 ? (
-            "Sin jugadas"
-          ) : (
-            "Girar"
-          )}
-          {!isSpinning && freeSpinsRemaining > 0 && (
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer pointer-events-none" />
-          )}
-        </Button>
+            {!isDisabled && (
+              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            )}
+          </button>
+        ) : (
+          /* --- FREE BUTTON (original) --- */
+          <Button
+            onClick={handleSpin}
+            disabled={isDisabled}
+            size="lg"
+            className="mt-1 w-full max-w-xs uppercase font-black tracking-wider sm:mt-2 sm:w-auto sm:px-12 sm:py-6 text-base sm:text-lg relative overflow-hidden group animate-fade-in-up animation-delay-300"
+          >
+            {isSpinning ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Girando...
+              </span>
+            ) : spinState === "won" ? (
+              "¡Ganaste!"
+            ) : freeSpinsRemaining <= 0 ? (
+              "Sin jugadas"
+            ) : (
+              "Girar"
+            )}
+            {!isSpinning && freeSpinsRemaining > 0 && (
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer pointer-events-none" />
+            )}
+          </Button>
+        )}
 
-        {/* Info bar */}
+        {/* ===== INFO BAR ===== */}
         <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-6 animate-fade-in-up animation-delay-400">
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Jugadas gratuitas restantes:{" "}
-            <span className="font-bold text-primary">{freeSpinsRemaining}</span>
-          </p>
+          {isPoolMode ? (
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Saldo después de jugar:{" "}
+              <span className={cn("font-bold", canAfford ? "text-primary" : "text-destructive")}>
+                {canAfford
+                  ? formatCurrency(userBalance - costPerPlay)
+                  : formatCurrency(userBalance)}
+              </span>
+            </p>
+          ) : (
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Jugadas gratuitas restantes:{" "}
+              <span className="font-bold text-primary">{freeSpinsRemaining}</span>
+            </p>
+          )}
           <p className="hidden text-xs sm:block text-muted-foreground/60">
             Presiona{" "}
             <kbd className="rounded border border-border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
@@ -493,7 +600,7 @@ export function SlotMachine({
         </div>
       </div>
 
-      {/* Win overlay */}
+      {/* ===== WIN OVERLAY (identical for both modes) ===== */}
       {showWin && winInfo?.isWin && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
@@ -538,7 +645,7 @@ export function SlotMachine({
               )}
             </div>
             <h2 className="mt-3 text-2xl font-black uppercase sm:mt-4 sm:text-3xl text-primary font-display">
-              ¡Ganaste!
+              {isPoolMode ? "¡JACKPOT!" : "¡Ganaste!"}
             </h2>
             {serverResultInfo?.prize ? (
               <>
