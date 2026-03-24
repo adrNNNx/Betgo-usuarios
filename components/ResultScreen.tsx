@@ -19,6 +19,8 @@ interface ResultScreenProps {
   user: User;
   spinCost: number;
   bar: BarInfo;
+  /** Si viene de jugar por el pozo global */
+  fromPool?: boolean;
   onPlayGlobalPot?: () => void;
   onLoadBalance?: () => void;
   onBackToHome: () => void;
@@ -29,6 +31,7 @@ export function ResultScreen({
   user,
   spinCost,
   bar,
+  fromPool = false,
   onPlayGlobalPot,
   onLoadBalance,
   onBackToHome,
@@ -124,10 +127,14 @@ export function ResultScreen({
           ) : (
             <>
               <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
-                Se acabaron las jugadas
+                {fromPool
+                  ? "Saldo insuficiente"
+                  : "Se acabaron las jugadas"}
               </h1>
               <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">
-                Pero puedes seguir intentando
+                {fromPool
+                  ? "Carga más saldo para seguir jugando por el pozo"
+                  : "Pero puedes seguir intentando"}
               </p>
             </>
           )}

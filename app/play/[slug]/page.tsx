@@ -54,6 +54,7 @@ export default function BarGamePage() {
   // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
   const [isScreenVisible, setIsScreenVisible] = useState(true);
+  const [lastPlayMode, setLastPlayMode] = useState<"free" | "pool">("free");
   const [serverResults, setServerResults] = useState<SlotSymbol[] | null>(null);
   const [serverResultInfo, setServerResultInfo] = useState<{
     isWinner: boolean;
@@ -118,6 +119,7 @@ export default function BarGamePage() {
     if (!bar || !session) return;
 
     setSpinError(null);
+    setLastPlayMode("free");
 
     try {
       const result = await play("free", slug);
@@ -152,6 +154,7 @@ export default function BarGamePage() {
     if (!bar || !pool) return;
 
     setSpinError(null);
+    setLastPlayMode("pool");
 
     try {
       const result = await play("pool", slug);
@@ -241,6 +244,7 @@ export default function BarGamePage() {
     setServerResultInfo(null);
     setSpinError(null);
     clearResult();
+    loadPool();
   };
 
   // ==================== HANDLER: LOGOUT ====================
@@ -392,6 +396,7 @@ export default function BarGamePage() {
               name: bar.name,
               logoUrl: bar.logoUrl,
             }}
+            fromPool={lastPlayMode === "pool"}
             onPlayGlobalPot={handlePlayGlobalPot}
             onLoadBalance={() => toast.info("Función de carga de saldo")}
             onBackToHome={handleBackToHome}
