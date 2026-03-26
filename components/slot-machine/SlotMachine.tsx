@@ -530,7 +530,7 @@ export function SlotMachine({
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span className="uppercase tracking-wider">Girando...</span>
                 </>
-              ) : spinState === "won" ? (
+              ) : showWin ? (
                 <span className="uppercase tracking-wider">¡Ganaste!</span>
               ) : !canAfford ? (
                 <span className="uppercase tracking-wider">Saldo insuficiente</span>
@@ -560,7 +560,7 @@ export function SlotMachine({
                 <Loader2 className="h-5 w-5 animate-spin" />
                 Girando...
               </span>
-            ) : spinState === "won" ? (
+            ) : showWin ? (
               "¡Ganaste!"
             ) : freeSpinsRemaining <= 0 ? (
               "Sin jugadas"

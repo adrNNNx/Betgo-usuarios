@@ -57,6 +57,15 @@ export default function BarGamePage() {
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
   const [isScreenVisible, setIsScreenVisible] = useState(true);
   const [lastPlayMode, setLastPlayMode] = useState<"free" | "pool">("free");
+
+  // Monto del jackpot a mostrar — se congela durante la animación para no
+  // actualizarse antes de que terminen los rodillos.
+  const [jackpotDisplayAmount, setJackpotDisplayAmount] = useState(pool?.currentAmount ?? 0);
+  useEffect(() => {
+    if (currentScreen !== "playing-free" && currentScreen !== "playing-global") {
+      setJackpotDisplayAmount(pool?.currentAmount ?? 0);
+    }
+  }, [pool?.currentAmount, currentScreen]);
   const [serverResults, setServerResults] = useState<SlotSymbol[] | null>(null);
   const [serverResultInfo, setServerResultInfo] = useState<{
     isWinner: boolean;
@@ -331,7 +340,7 @@ export default function BarGamePage() {
                 title: bar.name,
                 barLogoUrl: bar.logoUrl,
                 currency: "Gs.",
-                jackpotAmount: pool?.currentAmount ?? 0,
+                jackpotAmount: jackpotDisplayAmount,
               }}
               symbols={symbols}
               usingCustomSymbols={usingCustomSymbols}
@@ -413,7 +422,7 @@ export default function BarGamePage() {
                 title: bar.name,
                 barLogoUrl: bar.logoUrl,
                 currency: "Gs.",
-                jackpotAmount: pool?.currentAmount ?? 0,
+                jackpotAmount: jackpotDisplayAmount,
               }}
               mode="pool"
               symbols={poolSymbols}
