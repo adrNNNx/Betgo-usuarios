@@ -8,6 +8,7 @@ import {
   playPaid,
   playPool,
   getPoolStatus,
+  getPoolSymbols,
   type BarAccessResponse,
   type PlayResultResponse,
   type BarSymbolResponse,
@@ -45,6 +46,7 @@ interface GameState {
   session: SessionData | null;
   pool: PoolData | null;
   symbols: BarSymbolResponse[];
+  poolSymbols: BarSymbolResponse[];
 
   // Estado del juego
   isLoadingBar: boolean;
@@ -55,6 +57,7 @@ interface GameState {
   // Acciones
   loadBar: (slug: string) => Promise<void>;
   loadSymbols: (slug: string) => Promise<void>;
+  loadPoolSymbols: () => Promise<void>;
   loadPool: () => Promise<void>;
   play: (type: PlayType, barSlug: string, tableId?: string) => Promise<PlayResultResponse>;
   clearResult: () => void;
@@ -68,6 +71,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   session: null,
   pool: null,
   symbols: [],
+  poolSymbols: [],
   isLoadingBar: false,
   isPlaying: false,
   barError: null,
@@ -98,6 +102,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
   /**
    * Cargar símbolos del bar (globales + específicos).
+   * Para jugadas gratis y pagas.
    */
   loadSymbols: async (slug: string) => {
     try {
@@ -105,6 +110,18 @@ export const useGameStore = create<GameState>()((set, get) => ({
       set({ symbols: data });
     } catch (error: any) {
       console.error("Error cargando símbolos:", error);
+    }
+  },
+
+  /**
+   * Cargar símbolos globales (solo para el pozo).
+   */
+  loadPoolSymbols: async () => {
+    try {
+      const data = await getPoolSymbols();
+      set({ poolSymbols: data });
+    } catch (error: any) {
+      console.error("Error cargando símbolos del pozo:", error);
     }
   },
 
@@ -187,6 +204,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       session: null,
       pool: null,
       symbols: [],
+      poolSymbols: [],
       isLoadingBar: false,
       isPlaying: false,
       barError: null,
@@ -204,3 +222,4 @@ export const useFreePlaysRemaining = () =>
 export const useIsPlaying = () => useGameStore((s) => s.isPlaying);
 export const useLastResult = () => useGameStore((s) => s.lastResult);
 export const useBarSymbolsData = () => useGameStore((s) => s.symbols);
+export const usePoolSymbolsData = () => useGameStore((s) => s.poolSymbols);

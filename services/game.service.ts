@@ -114,12 +114,24 @@ export async function accessBar(
 
 /**
  * Obtener símbolos del bar (globales + específicos, solo activos).
+ * Para jugadas gratis y pagas.
  */
 export async function getBarSymbols(
   slugOrCode: string
 ): Promise<BarSymbolResponse[]> {
   const { data } = await api.get<BarSymbolResponse[]>(
     `/game/bar/${slugOrCode}/symbols`
+  );
+  return data;
+}
+
+/**
+ * Obtener símbolos globales (solo para el pozo global).
+ * Solo retorna símbolos sin bar asociado (bar_id IS NULL).
+ */
+export async function getPoolSymbols(): Promise<BarSymbolResponse[]> {
+  const { data } = await api.get<BarSymbolResponse[]>(
+    "/game/pool/symbols"
   );
   return data;
 }

@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import type { SlotSymbol } from "@/types/slot-machine-type";
 import { DEFAULT_SYMBOLS } from "@/components/slot-machine/symbols";
-import { useBarSymbolsData } from "@/store/useGameStore";
+import { useBarSymbolsData, usePoolSymbolsData } from "@/store/useGameStore";
 import type { BarSymbolResponse } from "@/services/game.service";
 
 /**
@@ -61,6 +61,27 @@ export function useBarSymbols() {
   }, [rawSymbols]);
 
   return { symbols, usingCustomSymbols, globalCount, barCount };
+}
+
+/**
+ * Hook para obtener los símbolos GLOBALES del pozo ya transformados.
+ * Solo incluye símbolos sin bar asociado (bar_id IS NULL).
+ * Para jugadas por el pozo global.
+ */
+export function usePoolSymbols() {
+  const rawSymbols = usePoolSymbolsData();
+
+  const { symbols, usingCustomSymbols } = useMemo(() => {
+    if (!rawSymbols || rawSymbols.length === 0) {
+      return { symbols: DEFAULT_SYMBOLS, usingCustomSymbols: false };
+    }
+    return {
+      symbols: rawSymbols.map((s, i) => toSlotSymbol(s, i)),
+      usingCustomSymbols: true,
+    };
+  }, [rawSymbols]);
+
+  return { symbols, usingCustomSymbols };
 }
 
 /**

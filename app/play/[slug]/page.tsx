@@ -16,7 +16,7 @@ import { ResultScreen } from "@/components/ResultScreen";
 import { SlotMachine } from "@/components/slot-machine";
 
 // Hooks
-import { useBarSymbols, mapServerResultToSlotSymbols } from "@/hooks/use-bar-symbols";
+import { useBarSymbols, usePoolSymbols, mapServerResultToSlotSymbols } from "@/hooks/use-bar-symbols";
 
 // Types
 import type { SlotSymbol } from "@/types/slot-machine-type";
@@ -43,6 +43,7 @@ export default function BarGamePage() {
     lastResult,
     loadBar,
     loadSymbols,
+    loadPoolSymbols,
     loadPool,
     play,
     clearResult,
@@ -50,6 +51,7 @@ export default function BarGamePage() {
 
   // Símbolos transformados para el slot machine
   const { symbols, usingCustomSymbols } = useBarSymbols();
+  const { symbols: poolSymbols, usingCustomSymbols: usingPoolSymbols } = usePoolSymbols();
 
   // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
@@ -104,7 +106,7 @@ export default function BarGamePage() {
       }
 
       try {
-        await Promise.all([loadBar(slug), loadSymbols(slug), loadPool()]);
+        await Promise.all([loadBar(slug), loadSymbols(slug), loadPool(), loadPoolSymbols()]);
       } catch (error: any) {
         // El error ya se maneja en el store
         console.error("Error inicializando bar:", error);
@@ -161,7 +163,7 @@ export default function BarGamePage() {
 
       const resultSymbols = mapServerResultToSlotSymbols(
         result.symbolDetails,
-        symbols
+        poolSymbols
       );
       setServerResults(resultSymbols);
       setServerResultInfo({
@@ -181,7 +183,7 @@ export default function BarGamePage() {
       toast.error(message);
       setSpinError(message);
     }
-  }, [bar, pool, slug, symbols, play]);
+  }, [bar, pool, slug, poolSymbols, play]);
 
   // ==================== HANDLER: ANIMACIÓN COMPLETA (FREE) ====================
   const handleAnimationComplete = useCallback(() => {
@@ -414,8 +416,8 @@ export default function BarGamePage() {
                 jackpotAmount: pool?.currentAmount ?? 0,
               }}
               mode="pool"
-              symbols={symbols}
-              usingCustomSymbols={usingCustomSymbols}
+              symbols={poolSymbols}
+              usingCustomSymbols={usingPoolSymbols}
               freeSpinsRemaining={0}
               userBalance={user?.balance ?? 0}
               costPerPlay={pool?.costPerPlay ?? 1000}
