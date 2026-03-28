@@ -14,6 +14,7 @@ import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ResultScreen } from "@/components/ResultScreen";
 import { SlotMachine } from "@/components/slot-machine";
+import { LoadBalanceModal } from "@/components/LoadBalanceModal";
 
 // Hooks
 import { useBarSymbols, usePoolSymbols, mapServerResultToSlotSymbols } from "@/hooks/use-bar-symbols";
@@ -77,6 +78,7 @@ export default function BarGamePage() {
     } | null;
   } | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
+  const [showLoadBalance, setShowLoadBalance] = useState(false);
 
   /**
    * Cambiar pantalla con transición suave.
@@ -258,6 +260,14 @@ export default function BarGamePage() {
     loadPool();
   };
 
+  // ==================== HANDLER: CARGA DE SALDO EXITOSA ====================
+  const handleLoadBalanceSuccess = (amount: number) => {
+    // Actualizar balance en authStore
+    useAuthStore.getState().updateBalance((user?.balance ?? 0) + amount);
+    // Refrescar pozo y sesión
+    loadPool();
+  };
+
   // ==================== HANDLER: LOGOUT ====================
   const handleLogout = async () => {
     useGameStore.getState().reset();
@@ -328,7 +338,7 @@ export default function BarGamePage() {
               transitionTo("playing-free");
             }}
             onPlayPoolClick={handlePlayGlobalPot}
-            onLoadBalanceClick={() => toast.info("Función de carga de saldo")}
+            onLoadBalanceClick={() => setShowLoadBalance(true)}
           />
         );
 
@@ -409,7 +419,7 @@ export default function BarGamePage() {
             }}
             fromPool={lastPlayMode === "pool"}
             onPlayGlobalPot={handlePlayGlobalPot}
-            onLoadBalance={() => toast.info("Función de carga de saldo")}
+            onLoadBalance={() => setShowLoadBalance(true)}
             onBackToHome={handleBackToHome}
           />
         ) : null;
@@ -476,6 +486,13 @@ export default function BarGamePage() {
       >
         {renderScreen()}
       </div>
+
+      <LoadBalanceModal
+        open={showLoadBalance}
+        onOpenChange={setShowLoadBalance}
+        userBalance={user?.balance ?? 0}
+        onSuccess={handleLoadBalanceSuccess}
+      />
     </>
   );
 }
