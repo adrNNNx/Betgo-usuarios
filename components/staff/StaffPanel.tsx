@@ -10,6 +10,7 @@ import {
   type StaffProfile,
   type ValidatedPlayer,
 } from "@/services/staff.service";
+import { QRScanner } from "@/components/staff/QRScanner";
 import {
   MapPin,
   UserRound,
@@ -18,7 +19,6 @@ import {
   QrCode,
   Search,
   Camera,
-  X,
   CircleCheckBig,
   Loader2,
   Banknote,
@@ -112,6 +112,28 @@ export function StaffPanel({ profile, onLogout }: StaffPanelProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleValidate();
+  };
+
+  // Cuando el scanner lee un QR → setear código, cerrar scanner, auto-validar
+  const handleScanResult = async (scannedCode: string) => {
+    setPlayerCode(scannedCode);
+    setShowScanner(false);
+    setValidationError(null);
+    setValidatedPlayer(null);
+    setRechargeSuccess(null);
+
+    // Auto-validar
+    setIsValidating(true);
+    try {
+      const result = await validateRechargeCode(scannedCode);
+      setValidatedPlayer(result);
+    } catch (err: any) {
+      setValidationError(
+        err.response?.data?.message || "Error al validar el código"
+      );
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   // ==================== RECHARGE ====================
@@ -283,7 +305,8 @@ export function StaffPanel({ profile, onLogout }: StaffPanelProps) {
 
               {/* Code input + buttons */}
               <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="flex flex-1 gap-2">
+                {/* Input: en móvil tiene la cámara dentro, en sm+ es normal */}
+                <div className="relative flex-1">
                   <input
                     ref={codeInputRef}
                     type="text"
@@ -294,22 +317,34 @@ export function StaffPanel({ profile, onLogout }: StaffPanelProps) {
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder="Ingresa el código del jugador"
-                    className="flex-1 min-w-0 rounded-lg bg-muted/40 border border-border/40 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50"
+                    className="w-full rounded-lg bg-muted/40 border border-border/40 px-3 pr-10 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 sm:pr-3"
                     disabled={isValidating}
                   />
+                  {/* Cámara dentro del input — solo móvil */}
                   <button
                     onClick={() => setShowScanner(true)}
-                    className="shrink-0 rounded-lg bg-muted/40 border border-border/40 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors sm:hidden"
                     aria-label="Escanear QR"
                   >
                     <Camera className="h-4 w-4" />
                   </button>
                 </div>
+
+                {/* Cámara como botón independiente — solo sm+ */}
+                <button
+                  onClick={() => setShowScanner(true)}
+                  className="hidden sm:flex items-center justify-center shrink-0 rounded-lg bg-muted/40 border border-border/40 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  aria-label="Escanear QR"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+
+                {/* Validar: ancho completo en móvil, auto en sm+ */}
                 <button
                   onClick={handleValidate}
                   disabled={!playerCode.trim() || isValidating}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors sm:shrink-0",
+                    "w-full sm:w-auto sm:shrink-0 flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
                     playerCode.trim() && !isValidating
                       ? "bg-primary/15 border border-primary/30 text-primary hover:bg-primary/25"
                       : "bg-muted/30 border border-border/30 text-muted-foreground cursor-not-allowed",
@@ -332,19 +367,12 @@ export function StaffPanel({ profile, onLogout }: StaffPanelProps) {
                 </div>
               )}
 
-              {/* QR Scanner placeholder */}
+              {/* QR Scanner */}
               {showScanner && (
-                <div className="relative rounded-xl bg-primary/5 border border-primary/20 p-8 flex flex-col items-center gap-3">
-                  <button
-                    onClick={() => setShowScanner(false)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <Camera className="h-10 w-10 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Cámara QR activa...</p>
-                  <p className="text-xs text-muted-foreground/60">Apunta al código QR del cliente</p>
-                </div>
+                <QRScanner
+                  onResult={handleScanResult}
+                  onClose={() => setShowScanner(false)}
+                />
               )}
             </section>
 
