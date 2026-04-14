@@ -11,6 +11,7 @@ import {
   type ValidatedPlayer,
 } from "@/services/staff.service";
 import { QRScanner } from "@/components/staff/QRScanner";
+import { ValidatePrizesTab } from "@/components/staff/ValidatePrizesTab";
 import {
   MapPin,
   UserRound,
@@ -580,15 +581,9 @@ export function StaffPanel({ profile, onLogout }: StaffPanelProps) {
           </div>
         )}
 
-        {/* ===== TAB: VALIDAR PREMIOS (placeholder) ===== */}
+        {/* ===== TAB: VALIDAR PREMIOS ===== */}
         {activeTab === "premios" && (
-          <section className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 sm:p-12 flex flex-col items-center gap-3">
-            <Gift className="h-10 w-10 text-muted-foreground/40" />
-            <p className="font-semibold text-foreground">Validar Premios</p>
-            <p className="text-xs text-muted-foreground text-center max-w-xs">
-              Esta sección estará disponible próximamente. Acá podrás validar y entregar premios locales del bar.
-            </p>
-          </section>
+          <ValidatePrizesTab barId={profile.bar?.id ?? null} />
         )}
       </main>
     </div>
