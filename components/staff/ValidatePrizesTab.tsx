@@ -188,32 +188,47 @@ export function ValidatePrizesTab({ barId }: ValidatePrizesTabProps) {
         </div>
 
         {/* Code input + buttons */}
-        <div className="flex gap-2">
-          <input
-            ref={codeInputRef}
-            type="text"
-            value={prizeCode}
-            onChange={(e) => {
-              setPrizeCode(e.target.value.toUpperCase());
-              setValidationError(null);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Código del premio"
-            className="flex-1 rounded-lg bg-muted/40 border border-border/40 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50"
-            disabled={isValidating}
-          />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {/* Input: en móvil tiene la cámara dentro, en sm+ es normal */}
+          <div className="relative flex-1">
+            <input
+              ref={codeInputRef}
+              type="text"
+              value={prizeCode}
+              onChange={(e) => {
+                setPrizeCode(e.target.value.toUpperCase());
+                setValidationError(null);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Código del premio"
+              className="w-full rounded-lg bg-muted/40 border border-border/40 px-3 pr-10 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 sm:pr-3"
+              disabled={isValidating}
+            />
+            {/* Cámara dentro del input — solo móvil */}
+            <button
+              onClick={() => setShowScanner(true)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors sm:hidden"
+              aria-label="Escanear QR"
+            >
+              <Camera className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Cámara como botón independiente — solo sm+ */}
           <button
             onClick={() => setShowScanner(true)}
-            className="shrink-0 rounded-lg bg-muted/40 border border-border/40 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="hidden sm:flex items-center justify-center shrink-0 rounded-lg bg-muted/40 border border-border/40 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Escanear QR"
           >
             <Camera className="h-4 w-4" />
           </button>
+
+          {/* Validar: ancho completo en móvil, auto en sm+ */}
           <button
             onClick={() => handleValidate()}
             disabled={!prizeCode.trim() || isValidating}
             className={cn(
-              "shrink-0 flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors",
+              "w-full sm:w-auto sm:shrink-0 flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors",
               prizeCode.trim() && !isValidating
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : "bg-muted/30 border border-border/30 text-muted-foreground cursor-not-allowed",
@@ -224,7 +239,7 @@ export function ValidatePrizesTab({ barId }: ValidatePrizesTabProps) {
             ) : (
               <Search className="h-4 w-4" />
             )}
-            Validar Código
+            Validar
           </button>
         </div>
 
@@ -307,7 +322,7 @@ export function ValidatePrizesTab({ barId }: ValidatePrizesTabProps) {
                 <p className="font-semibold text-foreground text-base">
                   {validatedClaim.prize.name}
                 </p>
-                {validatedClaim.prize.value && (
+                {!!validatedClaim.prize.value && (
                   <p className="text-sm font-bold text-primary tabular-nums font-display">
                     {formatCurrency(validatedClaim.prize.value)}
                   </p>
