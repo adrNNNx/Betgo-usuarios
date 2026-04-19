@@ -195,3 +195,30 @@ export async function getDailySummary(): Promise<DailySummaryResponse> {
   );
   return data;
 }
+
+// ==================== BANNERS ====================
+
+export interface BannerItem {
+  id: string;
+  title: string;
+  description: string | null;
+  imageUrl: string;
+  linkUrl: string | null;
+  displayOrder: number;
+  barId: string | null;
+}
+
+/**
+ * Obtener banners activos (globales + del bar).
+ * GET /banners/active?barId=xxx
+ *
+ * Endpoint público — retorna solo banners visibles
+ * (activos, dentro de fechas configuradas).
+ */
+export async function getActiveBanners(
+  barId?: string
+): Promise<BannerItem[]> {
+  const params = barId ? { barId } : {};
+  const { data } = await api.get<BannerItem[]>("/banners/active", { params });
+  return data;
+}

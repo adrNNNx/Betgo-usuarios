@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
-import { getBarPublicInfo } from "@/services/game.service";
+import { getBarPublicInfo, getActiveBanners, type BannerItem } from "@/services/game.service";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,6 +15,7 @@ import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ResultScreen } from "@/components/ResultScreen";
 import { SlotMachine } from "@/components/slot-machine";
 import { LoadBalanceModal } from "@/components/LoadBalanceModal";
+import { BannerCarousel } from "@/components/BannerCarousel";
 
 // Hooks
 import { useBarSymbols, usePoolSymbols, mapServerResultToSlotSymbols } from "@/hooks/use-bar-symbols";
@@ -79,6 +80,7 @@ export default function BarGamePage() {
   } | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
   const [showLoadBalance, setShowLoadBalance] = useState(false);
+  const [banners, setBanners] = useState<BannerItem[]>([]);
 
   /**
    * Cambiar pantalla con transición suave.
@@ -121,6 +123,12 @@ export default function BarGamePage() {
       } catch (error: any) {
         // El error ya se maneja en el store
         console.error("Error inicializando bar:", error);
+      }
+
+      // Cargar banners (no bloquea — es cosmético)
+      const loadedBar = useGameStore.getState().bar;
+      if (loadedBar) {
+        getActiveBanners(loadedBar.id).then(setBanners).catch(() => {});
       }
     };
 
@@ -345,6 +353,7 @@ export default function BarGamePage() {
       case "playing-free":
         return (
           <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
+            <BannerCarousel banners={banners} className="mb-4 px-1" />
             <SlotMachine
               config={{
                 title: bar.name,
@@ -427,6 +436,7 @@ export default function BarGamePage() {
       case "playing-global":
         return (
           <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
+            <BannerCarousel banners={banners} className="mb-4 px-1" />
             <SlotMachine
               config={{
                 title: bar.name,
