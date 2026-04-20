@@ -60,14 +60,10 @@ export default function BarGamePage() {
   const [isScreenVisible, setIsScreenVisible] = useState(true);
   const [lastPlayMode, setLastPlayMode] = useState<"free" | "pool">("free");
 
-  // Monto del jackpot a mostrar — se congela durante la animación para no
-  // actualizarse antes de que terminen los rodillos.
   const [jackpotDisplayAmount, setJackpotDisplayAmount] = useState(pool?.currentAmount ?? 0);
   useEffect(() => {
-    if (currentScreen !== "playing-free" && currentScreen !== "playing-global") {
-      setJackpotDisplayAmount(pool?.currentAmount ?? 0);
-    }
-  }, [pool?.currentAmount, currentScreen]);
+    setJackpotDisplayAmount(pool?.currentAmount ?? 0);
+  }, [pool?.currentAmount]);
   const [serverResults, setServerResults] = useState<SlotSymbol[] | null>(null);
   const [serverResultInfo, setServerResultInfo] = useState<{
     isWinner: boolean;

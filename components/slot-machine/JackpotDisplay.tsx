@@ -7,12 +7,14 @@ interface JackpotDisplayProps {
   amount: number;
   currency: string;
   isAnimating?: boolean;
+  showLabel?: boolean;
 }
 
 export function JackpotDisplay({
   amount,
   currency,
   isAnimating,
+  showLabel = true,
 }: JackpotDisplayProps) {
   const [displayAmount, setDisplayAmount] = useState(amount);
   const animRef = useRef<number>(0);
@@ -56,12 +58,14 @@ export function JackpotDisplay({
           : "0 0 15px oklch(0.72 0.15 85 / 0.1), inset 0 1px 0 oklch(1 0 0 / 0.05)",
       }}
     >
-      <p
-        className="text-[10px] font-medium uppercase tracking-widest sm:text-xs"
-        style={{ color: "oklch(0.65 0.04 90)" }} // muted text
-      >
-        Pozo Global
-      </p>
+      {showLabel && (
+        <p
+          className="text-[10px] font-medium uppercase tracking-widest sm:text-xs"
+          style={{ color: "oklch(0.65 0.04 90)" }}
+        >
+          Pozo Global
+        </p>
+      )}
       <p
         className="mt-0.5 text-xl font-black tabular-nums tracking-tight sm:mt-1 sm:text-3xl font-display"
         style={{ color: "oklch(0.72 0.15 85)" }} // primary color

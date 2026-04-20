@@ -249,7 +249,7 @@ export function SlotMachine({
         {isPoolMode ? (
           /* --- POOL MODE HEADER --- */
           <div className="flex flex-col items-center gap-3 w-full animate-fade-in-up">
-            {/* Pool badge */}
+            {/* Pool badge with jackpot amount */}
             <div
               className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 sm:px-5 sm:py-2"
               style={{
@@ -261,6 +261,14 @@ export function SlotMachine({
               <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-primary">
                 Pozo Global
               </span>
+              {jackpotAmount > 0 && (
+                <>
+                  <span className="text-primary/30 text-xs">·</span>
+                  <span className="text-sm sm:text-base font-black tabular-nums text-primary">
+                    {formatCurrency(jackpotAmount)}
+                  </span>
+                </>
+              )}
               {/* Live dot */}
               <span className="relative flex h-2 w-2 ml-1">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
@@ -279,23 +287,6 @@ export function SlotMachine({
             ) : (
               <span className="text-sm text-muted-foreground font-medium">{title}</span>
             )}
-
-            {/* Balance + Cost strip */}
-            <div className="flex items-center gap-4 text-xs sm:text-sm">
-              <span className="text-muted-foreground">
-                Saldo:{" "}
-                <span className={cn("font-bold", canAfford ? "text-emerald-400" : "text-destructive")}>
-                  {formatCurrency(userBalance)}
-                </span>
-              </span>
-              <span className="text-border">|</span>
-              <span className="text-muted-foreground">
-                Costo:{" "}
-                <span className="font-bold text-foreground">
-                  {formatCurrency(costPerPlay)}
-                </span>
-              </span>
-            </div>
           </div>
         ) : (
           /* --- FREE MODE HEADER (original) --- */
@@ -347,8 +338,8 @@ export function SlotMachine({
           </div>
         )}
 
-        {/* Jackpot Display */}
-        {jackpotAmount > 0 && (
+        {/* Jackpot Display — solo en free mode, en pool ya está en el badge */}
+        {jackpotAmount > 0 && !isPoolMode && (
           <div className="animate-fade-in-up animation-delay-100">
             <JackpotDisplay
               amount={jackpotAmount}
@@ -574,19 +565,10 @@ export function SlotMachine({
         )}
 
         {/* ===== INFO BAR ===== */}
-        <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-6 animate-fade-in-up animation-delay-400">
-          {isPoolMode ? (
+        <div className="flex items-center gap-4 animate-fade-in-up animation-delay-400">
+          {!isPoolMode && (
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Saldo después de jugar:{" "}
-              <span className={cn("font-bold", canAfford ? "text-primary" : "text-destructive")}>
-                {canAfford
-                  ? formatCurrency(userBalance - costPerPlay)
-                  : formatCurrency(userBalance)}
-              </span>
-            </p>
-          ) : (
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Jugadas gratuitas restantes:{" "}
+              Jugadas restantes:{" "}
               <span className="font-bold text-primary">{freeSpinsRemaining}</span>
             </p>
           )}
