@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
 import { getBarPublicInfo, getActiveBanners, type BannerItem } from "@/services/game.service";
+import { getPrizesByBarAndGlobal, type PrizeItem } from "@/services/prize.service";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,6 +17,7 @@ import { ResultScreen } from "@/components/ResultScreen";
 import { SlotMachine } from "@/components/slot-machine";
 import { LoadBalanceModal } from "@/components/LoadBalanceModal";
 import { BannerCarousel } from "@/components/BannerCarousel";
+import { PrizesShowcase } from "@/components/PrizesShowcase";
 
 // Hooks
 import { useBarSymbols, usePoolSymbols, mapServerResultToSlotSymbols } from "@/hooks/use-bar-symbols";
@@ -77,6 +79,7 @@ export default function BarGamePage() {
   const [spinError, setSpinError] = useState<string | null>(null);
   const [showLoadBalance, setShowLoadBalance] = useState(false);
   const [banners, setBanners] = useState<BannerItem[]>([]);
+  const [prizes, setPrizes] = useState<PrizeItem[]>([]);
 
   /**
    * Cambiar pantalla con transición suave.
@@ -121,10 +124,11 @@ export default function BarGamePage() {
         console.error("Error inicializando bar:", error);
       }
 
-      // Cargar banners (no bloquea — es cosmético)
+      // Cargar banners y premios (no bloquean — son cosméticos)
       const loadedBar = useGameStore.getState().bar;
       if (loadedBar) {
         getActiveBanners(loadedBar.id).then(setBanners).catch(() => {});
+        getPrizesByBarAndGlobal(loadedBar.id).then(setPrizes).catch(() => {});
       }
     };
 
@@ -432,7 +436,10 @@ export default function BarGamePage() {
       case "playing-global":
         return (
           <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
-            <BannerCarousel banners={banners} className="mb-4 px-1" />
+            <BannerCarousel banners={banners} className="mb-3 px-1" />
+
+            <PrizesShowcase prizes={prizes} className="mb-4 px-1" />
+
             <SlotMachine
               config={{
                 title: bar.name,
