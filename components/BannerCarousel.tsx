@@ -91,9 +91,7 @@ export function BannerCarousel({
               className="absolute inset-0 transition-all duration-700 ease-in-out"
               style={{
                 opacity: index === currentIndex ? 1 : 0,
-                transform: index === currentIndex
-                  ? "scale(1)"
-                  : "scale(1.03)",
+                transform: index === currentIndex ? "scale(1)" : "scale(1.03)",
               }}
             >
               <img
@@ -131,13 +129,6 @@ export function BannerCarousel({
             ))}
           </div>
         )}
-
-        {/* Sponsored label */}
-        <div className="absolute top-2 right-2 rounded-md bg-black/40 backdrop-blur-sm px-2 py-0.5">
-          <span className="text-[9px] uppercase tracking-wider text-white/70 font-medium">
-            Publicidad
-          </span>
-        </div>
       </div>
     </div>
   );
