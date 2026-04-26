@@ -5,8 +5,15 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useGameStore } from "@/store/useGameStore";
-import { getBarPublicInfo, getActiveBanners, type BannerItem } from "@/services/game.service";
-import { getPrizesByBarAndGlobal, type PrizeItem } from "@/services/prize.service";
+import {
+  getBarPublicInfo,
+  getActiveBanners,
+  type BannerItem,
+} from "@/services/game.service";
+import {
+  getPrizesByBarAndGlobal,
+  type PrizeItem,
+} from "@/services/prize.service";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,9 +25,14 @@ import { SlotMachine } from "@/components/slot-machine";
 import { LoadBalanceModal } from "@/components/LoadBalanceModal";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PrizesShowcase } from "@/components/PrizesShowcase";
+import { PoolPromoStrip } from "@/components/PoolPromoStrip";
 
 // Hooks
-import { useBarSymbols, usePoolSymbols, mapServerResultToSlotSymbols } from "@/hooks/use-bar-symbols";
+import {
+  useBarSymbols,
+  usePoolSymbols,
+  mapServerResultToSlotSymbols,
+} from "@/hooks/use-bar-symbols";
 
 // Types
 import type { SlotSymbol } from "@/types/slot-machine-type";
@@ -55,14 +67,17 @@ export default function BarGamePage() {
 
   // Símbolos transformados para el slot machine
   const { symbols, usingCustomSymbols } = useBarSymbols();
-  const { symbols: poolSymbols, usingCustomSymbols: usingPoolSymbols } = usePoolSymbols();
+  const { symbols: poolSymbols, usingCustomSymbols: usingPoolSymbols } =
+    usePoolSymbols();
 
   // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
   const [isScreenVisible, setIsScreenVisible] = useState(true);
   const [lastPlayMode, setLastPlayMode] = useState<"free" | "pool">("free");
 
-  const [jackpotDisplayAmount, setJackpotDisplayAmount] = useState(pool?.currentAmount ?? 0);
+  const [jackpotDisplayAmount, setJackpotDisplayAmount] = useState(
+    pool?.currentAmount ?? 0,
+  );
   useEffect(() => {
     setJackpotDisplayAmount(pool?.currentAmount ?? 0);
   }, [pool?.currentAmount]);
@@ -85,20 +100,23 @@ export default function BarGamePage() {
    * Cambiar pantalla con transición suave.
    * Fade-out (300ms) → cambiar screen → fade-in (300ms).
    */
-  const transitionTo = useCallback((screen: GameScreen) => {
-    // Si ya estamos en esa pantalla, no hacer nada
-    if (screen === currentScreen) return;
+  const transitionTo = useCallback(
+    (screen: GameScreen) => {
+      // Si ya estamos en esa pantalla, no hacer nada
+      if (screen === currentScreen) return;
 
-    setIsScreenVisible(false); // inicia fade-out
+      setIsScreenVisible(false); // inicia fade-out
 
-    setTimeout(() => {
-      setCurrentScreen(screen); // cambiar pantalla mientras está invisible
-      // Pequeño delay para que React pinte el nuevo contenido antes del fade-in
-      requestAnimationFrame(() => {
-        setIsScreenVisible(true); // inicia fade-in
-      });
-    }, 280);
-  }, [currentScreen]);
+      setTimeout(() => {
+        setCurrentScreen(screen); // cambiar pantalla mientras está invisible
+        // Pequeño delay para que React pinte el nuevo contenido antes del fade-in
+        requestAnimationFrame(() => {
+          setIsScreenVisible(true); // inicia fade-in
+        });
+      }, 280);
+    },
+    [currentScreen],
+  );
 
   // ==================== CARGAR BAR AL MONTAR ====================
   useEffect(() => {
@@ -118,7 +136,12 @@ export default function BarGamePage() {
       }
 
       try {
-        await Promise.all([loadBar(slug), loadSymbols(slug), loadPool(), loadPoolSymbols()]);
+        await Promise.all([
+          loadBar(slug),
+          loadSymbols(slug),
+          loadPool(),
+          loadPoolSymbols(),
+        ]);
       } catch (error: any) {
         // El error ya se maneja en el store
         console.error("Error inicializando bar:", error);
@@ -127,8 +150,12 @@ export default function BarGamePage() {
       // Cargar banners y premios (no bloquean — son cosméticos)
       const loadedBar = useGameStore.getState().bar;
       if (loadedBar) {
-        getActiveBanners(loadedBar.id).then(setBanners).catch(() => {});
-        getPrizesByBarAndGlobal(loadedBar.id).then(setPrizes).catch(() => {});
+        getActiveBanners(loadedBar.id)
+          .then(setBanners)
+          .catch(() => {});
+        getPrizesByBarAndGlobal(loadedBar.id)
+          .then(setPrizes)
+          .catch(() => {});
       }
     };
 
@@ -148,7 +175,7 @@ export default function BarGamePage() {
       // Mapear los symbolDetails del servidor a SlotSymbol[] para la animación
       const resultSymbols = mapServerResultToSlotSymbols(
         result.symbolDetails,
-        symbols
+        symbols,
       );
       setServerResults(resultSymbols);
       setServerResultInfo({
@@ -182,7 +209,7 @@ export default function BarGamePage() {
 
       const resultSymbols = mapServerResultToSlotSymbols(
         result.symbolDetails,
-        poolSymbols
+        poolSymbols,
       );
       setServerResults(resultSymbols);
       setServerResultInfo({
@@ -206,7 +233,8 @@ export default function BarGamePage() {
 
   // ==================== HANDLER: ANIMACIÓN COMPLETA (FREE) ====================
   const handleAnimationComplete = useCallback(() => {
-    const { session: currentSession, lastResult: currentLastResult } = useGameStore.getState();
+    const { session: currentSession, lastResult: currentLastResult } =
+      useGameStore.getState();
     const remaining = currentSession?.playsRemaining ?? 0;
 
     if (currentLastResult?.isWinner) {
@@ -353,13 +381,21 @@ export default function BarGamePage() {
       case "playing-free":
         return (
           <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
-            <BannerCarousel banners={banners} className="mb-4 px-1" />
+            <BannerCarousel banners={banners} className="mb-3 px-1" />
+
+            <PoolPromoStrip
+              prizes={prizes}
+              poolAmount={pool?.currentAmount ?? 0}
+              costPerPlay={pool?.costPerPlay ?? 1000}
+              onPlayPool={handlePlayGlobalPot}
+              className="mt-4 px-1"
+            />
+
             <SlotMachine
               config={{
                 title: bar.name,
                 barLogoUrl: bar.logoUrl,
                 currency: "Gs.",
-                jackpotAmount: jackpotDisplayAmount,
               }}
               symbols={symbols}
               usingCustomSymbols={usingCustomSymbols}
@@ -401,7 +437,8 @@ export default function BarGamePage() {
                       ? `Código de reclamo: ${lastResult.prize.claimCode}`
                       : lastResult.prize.name,
                     value: lastResult.prize.value ?? 0,
-                    type: lastResult.prize.type === "jackpot" ? "jackpot" : "local",
+                    type:
+                      lastResult.prize.type === "jackpot" ? "jackpot" : "local",
                     stock: 0,
                     isActive: true,
                     imageUrl: lastResult.prize.imageUrl ?? undefined,

@@ -226,6 +226,9 @@ export function SlotMachine({
   const isDisabled =
     isSpinning || !canSpinNow || spinState === "won" || isWaitingForServer.current;
 
+  // Ocultar mensaje de pérdida en la última jugada gratis (ya va directo al resultado)
+  const showLoseContainer = showLoseMessage && (isPoolMode || freeSpinsRemaining > 0);
+
   // ==================== LOADING ====================
   if (symbolsLoading) {
     return (
@@ -289,51 +292,17 @@ export function SlotMachine({
             )}
           </div>
         ) : (
-          /* --- FREE MODE HEADER (original) --- */
-          <div
-            className="rounded-xl border px-5 py-2 text-center sm:px-8 sm:py-3 backdrop-blur-md animate-fade-in-up"
-            style={{
-              borderColor: "oklch(0.35 0.02 160)",
-              background: "oklch(0.26 0.04 160 / 0.9)",
-            }}
-          >
+          /* --- FREE MODE HEADER (compacto, igual que pool) --- */
+          <div className="flex flex-col items-center gap-2 animate-fade-in-up">
             {barLogoUrl ? (
-              <div className="flex flex-col items-center gap-2">
-                <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden ring-2 ring-primary/30 shadow-lg">
-                  <img
-                    src={barLogoUrl}
-                    alt={title}
-                    className="w-full h-full object-cover"
-                  />
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-primary/20">
+                  <img src={barLogoUrl} alt={title} className="w-full h-full object-cover" />
                 </div>
-                <div>
-                  <h1 className="text-base font-black uppercase tracking-wider sm:text-xl text-primary font-display">
-                    {title}
-                  </h1>
-                  {subtitle && (
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] sm:text-xs text-muted-foreground">
-                      {subtitle}
-                    </p>
-                  )}
-                </div>
+                <span className="text-sm text-muted-foreground font-medium">{title}</span>
               </div>
             ) : (
-              <div>
-                <h1 className="text-base font-black uppercase tracking-wider sm:text-xl text-primary font-display">
-                  {title}
-                </h1>
-                {subtitle && (
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] sm:text-xs text-muted-foreground">
-                    {subtitle}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {usingCustomSymbols && (
-              <p className="mt-1 text-[8px] text-primary/60 uppercase tracking-wider">
-                Símbolos personalizados • {symbols.length} configurados
-              </p>
+              <span className="text-sm text-muted-foreground font-medium">{title}</span>
             )}
           </div>
         )}
@@ -466,10 +435,10 @@ export function SlotMachine({
         <div
           className="text-center overflow-hidden transition-all duration-500 ease-out"
           style={{
-            maxHeight: showLoseMessage ? "80px" : "0px",
-            opacity: showLoseMessage ? 1 : 0,
-            transform: showLoseMessage ? "translateY(0)" : "translateY(-8px)",
-            marginTop: showLoseMessage ? "4px" : "0px",
+            maxHeight: showLoseContainer ? "80px" : "0px",
+            opacity: showLoseContainer ? 1 : 0,
+            transform: showLoseContainer ? "translateY(0)" : "translateY(-8px)",
+            marginTop: showLoseContainer ? "4px" : "0px",
           }}
         >
           <div
@@ -482,11 +451,11 @@ export function SlotMachine({
             <span className="text-sm sm:text-base text-muted-foreground">
               No fue esta vez
             </span>
-            {(isPoolMode ? canAfford : freeSpinsRemaining > 0) && (
+            {(!isPoolMode || canAfford) && (
               <>
                 <span className="text-muted-foreground/40">•</span>
                 <span className="text-sm sm:text-base text-primary font-medium">
-                  ¡Intentá de nuevo!
+                  Intentalo de nuevo
                 </span>
               </>
             )}
@@ -556,7 +525,7 @@ export function SlotMachine({
             ) : freeSpinsRemaining <= 0 ? (
               "Sin jugadas"
             ) : (
-              "Girar"
+              "Jugar"
             )}
             {!isSpinning && freeSpinsRemaining > 0 && (
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer pointer-events-none" />
