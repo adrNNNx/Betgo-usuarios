@@ -1,20 +1,21 @@
 // components/PrizesShowcase.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { PrizeItem } from "@/services/prize.service";
 
-// ==================== HELPERS ====================
+// ============================================================
+// HELPERS
+// ============================================================
 
-function formatValue(value: number): string {
+function formatCompact(value: number): string {
   if (value >= 1_000_000) {
-    return `Gs. ${(value / 1_000_000).toFixed(1).replace(".0", "")}M`;
+    const v = value / 1_000_000;
+    return "Gs. " + (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + "M";
   }
-  if (value >= 1_000) {
-    return `Gs. ${(value / 1_000).toFixed(0)}k`;
-  }
-  return `Gs. ${value.toLocaleString("es-PY")}`;
+  if (value >= 1_000) return "Gs. " + Math.floor(value / 1_000) + "k";
+  return "Gs. " + value.toLocaleString("es-PY");
 }
 
 function getPrizeFallbackEmoji(prize: PrizeItem): string {
@@ -29,121 +30,9 @@ function getPrizeFallbackEmoji(prize: PrizeItem): string {
   return "🎁";
 }
 
-// ==================== PRIZE CARD ====================
-
-interface PrizeCardProps {
-  prize: PrizeItem;
-  index: number;
-}
-
-function PrizeCard({ prize, index }: PrizeCardProps) {
-  const isJackpot = prize.type === "jackpot";
-  const fallback = getPrizeFallbackEmoji(prize);
-
-  return (
-    <div
-      className={cn(
-        "relative flex-shrink-0 flex flex-col items-center gap-1.5",
-        "w-[108px] sm:w-[120px] px-2 py-3 rounded-xl",
-        isJackpot
-          ? "bg-gradient-to-b from-primary/20 to-primary/5 border border-primary/40"
-          : "bg-gradient-to-b from-card/80 to-card/40 border border-border/40",
-        "backdrop-blur-sm",
-        "animate-fade-in-up",
-      )}
-      style={{ animationDelay: `${index * 60}ms`, animationFillMode: "both" }}
-    >
-      {/* Badge tipo */}
-      <div
-        className={cn(
-          "absolute top-1.5 right-1.5 rounded-full px-1.5 py-0.5",
-          "text-[8px] font-bold uppercase tracking-wider leading-none",
-          isJackpot
-            ? "bg-primary/30 text-primary"
-            : "bg-secondary/60 text-muted-foreground",
-        )}
-      >
-        {isJackpot ? "global" : "local"}
-      </div>
-
-      {/* Imagen o emoji fallback */}
-      <div
-        className={cn(
-          "w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden",
-          "flex items-center justify-center flex-shrink-0",
-          isJackpot
-            ? "bg-primary/10 ring-1 ring-primary/30"
-            : "bg-secondary/40 ring-1 ring-border/30",
-        )}
-      >
-        {prize.imageUrl ? (
-          <img
-            src={prize.imageUrl}
-            alt={prize.name}
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
-        ) : (
-          <span className="text-2xl sm:text-3xl leading-none select-none">
-            {fallback}
-          </span>
-        )}
-      </div>
-
-      {/* Nombre */}
-      <p
-        className={cn(
-          "text-[11px] sm:text-xs font-semibold text-center leading-tight line-clamp-2 w-full",
-          isJackpot ? "text-primary" : "text-foreground/90",
-        )}
-      >
-        {prize.name}
-      </p>
-
-      {/* Zona inferior — altura fija para que todas las cards sean iguales */}
-      <div className="flex flex-col items-center gap-1 min-h-7 justify-center w-full">
-        {prize.value != null && prize.value > 0 && (
-          <span
-            className={cn(
-              "text-[10px] font-bold tabular-nums",
-              isJackpot ? "text-primary/80" : "text-muted-foreground",
-            )}
-          >
-            {formatValue(prize.value)}
-          </span>
-        )}
-
-        {prize.stock != null && prize.stock > 0 && prize.stock <= 5 && (
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 text-[9px] font-semibold",
-              prize.stock <= 3 ? "text-primary" : "text-foreground/70",
-            )}
-          >
-            {prize.stock === 1 && (
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 animate-pulse"
-                style={{ boxShadow: "0 0 6px var(--color-primary)" }}
-              />
-            )}
-            {prize.stock === 1 ? "¡Solo 1!" : `Quedan ${prize.stock}`}
-          </span>
-        )}
-
-        {/* Descripción como fallback cuando no hay valor ni stock visible */}
-        {(prize.value == null || prize.value === 0) &&
-          (prize.stock == null || prize.stock === 0 || prize.stock > 5) &&
-          prize.description && (
-            <p className="text-[9px] text-muted-foreground/70 text-center leading-tight line-clamp-3 w-full px-1">
-              {prize.description}
-            </p>
-          )}
-      </div>
-    </div>
-  );
-}
-
-// ==================== MAIN COMPONENT ====================
+// ============================================================
+// PROPS
+// ============================================================
 
 interface PrizesShowcaseProps {
   prizes: PrizeItem[];
@@ -151,86 +40,331 @@ interface PrizesShowcaseProps {
 }
 
 /**
- * Strip de premios con marquee CSS infinito y suave.
- * - Mobile: ~108px por card, caben ~3 a la vez.
- * - Desktop (sm+): ~120px por card, caben más a la vez.
- * - Pausa en hover/touch.
- * - Sin scroll JS — usa translateX(-50%) sobre una lista duplicada.
+ * Showcase de premios visible mientras el usuario juega por el pozo global.
+ *
+ * Comparte el lenguaje visual del PoolPromoStrip ("ticket dorado"):
+ *  - Card con borde dorado sutil y notches laterales
+ *  - Premio destacado rotando arriba (lo que el usuario está disputando)
+ *  - Ticker continuo abajo con TODOS los premios
+ *
+ * Diferencias con PoolPromoStrip:
+ *  - No tiene CTA (el usuario YA está jugando)
+ *  - Tono informativo, no vendedor: "Estás jugando por…"
+ *  - Más compacto verticalmente
  */
 export function PrizesShowcase({ prizes, className }: PrizesShowcaseProps) {
-  const [isPaused, setIsPaused] = useState(false);
+  const [featured, setFeatured] = useState(0);
+  const [paused, setPaused] = useState(false);
 
-  if (prizes.length === 0) return null;
+  // Filtrar y ordenar (jackpot primero, luego por valor)
+  const sorted = prizes
+    .filter((p) => p.isActive)
+    .sort((a, b) => {
+      if (a.type === "jackpot" && b.type !== "jackpot") return -1;
+      if (a.type !== "jackpot" && b.type === "jackpot") return 1;
+      return (b.value ?? 0) - (a.value ?? 0);
+    });
 
-  // Con 3 o menos items no hay sentido en animar — se muestran estáticos centrados.
-  const shouldAnimate = prizes.length > 3;
+  // Auto-rotación
+  useEffect(() => {
+    if (paused || sorted.length <= 1) return;
+    const id = setInterval(() => {
+      setFeatured((p) => (p + 1) % sorted.length);
+    }, 3500);
+    return () => clearInterval(id);
+  }, [paused, sorted.length]);
 
-  // Duración: ~128px por item (card + gap) a 32px/s ≈ 4 s/item.
-  // El track tiene 2x items y translateX(-50%) recorre exactamente 1x.
-  const durationSec = prizes.length * 4;
+  if (sorted.length === 0) return null;
 
-  const items = shouldAnimate ? [...prizes, ...prizes] : prizes;
+  const current = sorted[featured] ?? sorted[0];
+  const tickerItems = [...sorted, ...sorted];
+  const durationSec = Math.max(sorted.length * 6, 24);
 
   return (
-    <div className={cn("w-full max-w-2xl relative", className)}>
-      {/* Fade izquierdo — sobre el header y el track */}
+    <div className={cn("w-full max-w-2xl", className)}>
       <div
-        className="absolute inset-y-0 left-0 w-8 sm:w-10 z-10 pointer-events-none"
-        style={{ background: "linear-gradient(to right, var(--color-background), transparent)" }}
-      />
-      {/* Fade derecho */}
-      <div
-        className="absolute inset-y-0 right-0 w-8 sm:w-10 z-10 pointer-events-none"
-        style={{ background: "linear-gradient(to left, var(--color-background), transparent)" }}
-      />
-
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-2 px-1">
-        <div className="w-4 h-px bg-primary/40" />
-        <p className="text-[11px] sm:text-xs font-medium text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-          También jugás por
-        </p>
-        <div className="flex-1 h-px bg-linear-to-r from-primary/20 to-transparent" />
-      </div>
-
-      {/* Marquee wrapper — solo overflow-hidden, sin fades internos */}
-      <div
-        className="overflow-hidden"
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={() => setPaused(true)}
+        onTouchEnd={() => setPaused(false)}
+        className="relative w-full overflow-hidden rounded-2xl"
+        style={{
+          background:
+            "linear-gradient(180deg, oklch(0.26 0.04 160) 0%, oklch(0.22 0.04 160) 100%)",
+          border: "1px solid oklch(0.72 0.15 85 / 0.28)",
+          boxShadow:
+            "0 1px 0 oklch(1 0 0 / 0.04) inset, 0 0 0 1px oklch(0.72 0.15 85 / 0.04), 0 12px 36px oklch(0 0 0 / 0.4)",
+        }}
       >
-        {/* Track animado */}
-        <div
-          className={cn(
-            "flex gap-2 px-1 pb-1",
-            // Cuando no hay suficientes items mostramos estáticos
-            !shouldAnimate && "justify-center flex-wrap",
+        {/* Notches superiores */}
+        <Notch position="topleft" />
+        <Notch position="topright" />
+
+        {/* ============ HEADER + PREMIO DESTACADO ============ */}
+        <div className="px-5 pt-4 pb-3 sm:px-6 sm:py-4">
+          {/* Label de contexto */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inset-0 rounded-full bg-emerald-400/60 animate-ping" />
+                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              </span>
+              <span
+                className="font-display text-[9px] font-semibold uppercase tracking-[0.22em]"
+                style={{ color: "oklch(0.85 0.17 85 / 0.7)" }}
+              >
+                Estás jugando por
+              </span>
+            </div>
+            {sorted.length > 1 && (
+              <span
+                className="font-body text-[9px] font-medium uppercase tracking-[0.16em] tabular-nums"
+                style={{ color: "oklch(0.55 0.01 160)" }}
+              >
+                {featured + 1} / {sorted.length}
+              </span>
+            )}
+          </div>
+
+          {/* Premio destacado */}
+          <div
+            key={current?.id + "-" + featured}
+            className="flex items-center gap-3 sm:gap-4 animate-showcase-fade"
+          >
+            <PrizeIcon prize={current} />
+            <div className="min-w-0 flex-1">
+              <div
+                className="font-display text-[8.5px] font-semibold uppercase tracking-[0.16em] mb-0.5"
+                style={{
+                  color:
+                    current.type === "jackpot"
+                      ? "oklch(0.85 0.17 85 / 0.9)"
+                      : "oklch(0.55 0.01 160)",
+                }}
+              >
+                {current.type === "jackpot" ? "Premio Global" : "Premio Local"}
+                {current.stock != null && current.stock > 0 && current.stock <= 3 && (
+                  <span className="ml-1.5 font-bold" style={{ color: "oklch(0.7 0.18 35)" }}>
+                    {current.stock === 1 ? `· Queda 1` : `· Quedan ${current.stock}`}
+                  </span>
+                )}
+              </div>
+              <div className="font-display font-bold text-[16px] sm:text-[18px] leading-tight text-foreground/95 truncate">
+                {current.name}
+              </div>
+              {current.value != null && current.value > 0 && (
+                <div
+                  className="font-display font-bold text-[13px] tabular-nums leading-tight mt-0.5"
+                  style={{
+                    letterSpacing: "-0.01em",
+                    color:
+                      current.type === "jackpot"
+                        ? "oklch(0.85 0.17 85)"
+                        : "oklch(0.78 0.03 85 / 0.7)",
+                  }}
+                >
+                  {formatCompact(current.value)}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Dots indicador */}
+          {sorted.length > 1 && (
+            <div className="flex gap-[3px] mt-3">
+              {sorted.map((_, i) => (
+                <span
+                  key={i}
+                  className="h-[3px] rounded-full transition-all duration-500"
+                  style={{
+                    width: i === featured ? 14 : 3,
+                    background:
+                      i === featured
+                        ? "oklch(0.72 0.15 85)"
+                        : "oklch(0.55 0.01 160 / 0.35)",
+                  }}
+                />
+              ))}
+            </div>
           )}
-          style={
-            shouldAnimate
-              ? {
-                  // width: max-content para que el flex no haga wrap
-                  width: "max-content",
-                  animationName: "marquee",
-                  animationDuration: `${durationSec}s`,
-                  animationTimingFunction: "linear",
-                  animationIterationCount: "infinite",
-                  animationPlayState: isPaused ? "paused" : "running",
-                }
-              : undefined
-          }
-        >
-          {items.map((prize, index) => (
-            <PrizeCard
-              key={`${prize.id}-${index}`}
-              prize={prize}
-              index={index % prizes.length}
-            />
-          ))}
         </div>
+
+        {/* ============ PERFORACIÓN ============ */}
+        <div
+          className="relative h-3.5"
+          style={{
+            background:
+              "repeating-linear-gradient(to right, oklch(0.72 0.15 85 / 0.25) 0 5px, transparent 5px 10px)",
+            backgroundPosition: "0 50%",
+            backgroundSize: "100% 1px",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          <Notch position="midleft" />
+          <Notch position="midright" />
+        </div>
+
+        {/* ============ TICKER DE TODOS LOS PREMIOS ============ */}
+        <div
+          className="relative overflow-hidden py-2.5"
+          style={{ background: "oklch(0.2 0.05 160 / 0.4)" }}
+        >
+          <div
+            className="absolute inset-y-0 left-0 w-8 z-[2] pointer-events-none"
+            style={{
+              background: "linear-gradient(to right, oklch(0.22 0.04 160), transparent)",
+            }}
+          />
+          <div
+            className="absolute inset-y-0 right-0 w-8 z-[2] pointer-events-none"
+            style={{
+              background: "linear-gradient(to left, oklch(0.22 0.04 160), transparent)",
+            }}
+          />
+
+          <div
+            className="flex gap-6 px-4"
+            style={{
+              width: "max-content",
+              animation: `showcase-marquee ${durationSec}s linear infinite`,
+              animationPlayState: paused ? "paused" : "running",
+            }}
+          >
+            {tickerItems.map((prize, i) => (
+              <TickerItem
+                key={`${prize.id}-${i}`}
+                prize={prize}
+                isCurrent={prize.id === current.id}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Notches inferiores (cierra la metáfora del ticket) */}
+        <Notch position="bottomleft" />
+        <Notch position="bottomright" />
       </div>
+
+      {/* Animaciones */}
+      <style jsx>{`
+        @keyframes showcase-marquee {
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(-50%);
+          }
+        }
+        @keyframes showcase-fade {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        :global(.animate-showcase-fade) {
+          animation: showcase-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================================
+// SUBCOMPONENTES
+// ============================================================
+
+function Notch({
+  position,
+}: {
+  position: "topleft" | "topright" | "midleft" | "midright" | "bottomleft" | "bottomright";
+}) {
+  const map: Record<typeof position, React.CSSProperties> = {
+    topleft: { top: -7, left: -7 },
+    topright: { top: -7, right: -7 },
+    midleft: { top: "50%", left: -7, transform: "translateY(-50%)" },
+    midright: { top: "50%", right: -7, transform: "translateY(-50%)" },
+    bottomleft: { bottom: -7, left: -7 },
+    bottomright: { bottom: -7, right: -7 },
+  };
+  return (
+    <div
+      className="absolute w-3.5 h-3.5 rounded-full z-[3]"
+      style={{
+        background: "var(--color-background, oklch(0.2 0.05 160))",
+        ...map[position],
+      }}
+    />
+  );
+}
+
+function PrizeIcon({ prize }: { prize: PrizeItem }) {
+  const isJackpot = prize.type === "jackpot";
+  return (
+    <div
+      className={cn(
+        "w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0",
+        isJackpot
+          ? "bg-primary/15 ring-1 ring-primary/30"
+          : "bg-secondary/40 ring-1 ring-border/50",
+      )}
+    >
+      {prize.imageUrl ? (
+        <img
+          src={prize.imageUrl}
+          alt={prize.name}
+          className="w-full h-full object-cover"
+          crossOrigin="anonymous"
+          draggable={false}
+        />
+      ) : (
+        <span className="text-2xl sm:text-3xl leading-none select-none">
+          {getPrizeFallbackEmoji(prize)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function TickerItem({ prize, isCurrent }: { prize: PrizeItem; isCurrent: boolean }) {
+  const isJackpot = prize.type === "jackpot";
+  return (
+    <div
+      className="flex-shrink-0 flex items-center gap-2 transition-opacity duration-500"
+      style={{ opacity: isCurrent ? 1 : 0.7 }}
+    >
+      <span
+        className="w-1 h-1 rounded-full"
+        style={{
+          background: isJackpot
+            ? "oklch(0.85 0.17 85)"
+            : "oklch(0.55 0.01 160 / 0.7)",
+        }}
+      />
+      <span
+        className={cn(
+          "font-body text-[11px] whitespace-nowrap",
+          isCurrent ? "font-bold text-foreground" : "font-semibold text-foreground/85",
+        )}
+      >
+        {prize.name}
+      </span>
+      {prize.value != null && prize.value > 0 && (
+        <span
+          className="font-display text-[10.5px] font-bold tabular-nums whitespace-nowrap"
+          style={{
+            letterSpacing: "-0.01em",
+            color: isJackpot
+              ? "oklch(0.85 0.17 85 / 0.9)"
+              : "oklch(0.55 0.01 160)",
+          }}
+        >
+          {formatCompact(prize.value)}
+        </span>
+      )}
     </div>
   );
 }

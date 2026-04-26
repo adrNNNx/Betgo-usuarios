@@ -388,7 +388,7 @@ export default function BarGamePage() {
               poolAmount={pool?.currentAmount ?? 0}
               costPerPlay={pool?.costPerPlay ?? 1000}
               onPlayPool={handlePlayGlobalPot}
-              className="mt-4 px-1"
+              className="mt-2 mb-2 px-1"
             />
 
             <SlotMachine
