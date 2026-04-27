@@ -14,9 +14,10 @@ import {
   Gift,
   Users,
   ShieldCheck,
-  DollarSign,
 } from "lucide-react";
 import { BetgoFooter } from "@/components/BetgoFooter";
+import { BannerCarousel } from "@/components/BannerCarousel";
+import type { BannerItem } from "@/services/game.service";
 
 interface Bar {
   id: string;
@@ -38,6 +39,7 @@ interface WelcomeScreenProps {
   freeSpinsAvailable: number;
   pool: PoolInfo;
   userBalance: number;
+  banners: BannerItem[];
   onPlayClick: () => void;
   onPlayPoolClick: () => void;
   onLoadBalanceClick: () => void;
@@ -48,6 +50,7 @@ export function WelcomeScreen({
   freeSpinsAvailable,
   pool,
   userBalance,
+  banners,
   onPlayClick,
   onPlayPoolClick,
   onLoadBalanceClick,
@@ -142,92 +145,15 @@ export function WelcomeScreen({
         {/* ===== CARDS CONTAINER ===== */}
         {/* Mobile: single column | Desktop: 3-column grid */}
         <div className="w-full max-w-md lg:max-w-5xl xl:max-w-6xl flex flex-col gap-4 lg:gap-5">
+          {/* ===== BANNER PUBLICITARIO ===== */}
+          {banners.length > 0 && (
+            <div className="opacity-0 animate-fade-in-up animation-delay-100">
+              <BannerCarousel banners={banners} className="max-w-none" />
+            </div>
+          )}
+
           <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:gap-5 lg:items-stretch">
-            {/* ===== CARD 1: RULETA GRATIS ===== */}
-            <section className="opacity-0 animate-fade-in-up animation-delay-100">
-              <div className="h-full rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-4 sm:p-5 lg:p-6 flex flex-col">
-                {/* Header */}
-                <div className="flex items-start gap-3 mb-3 lg:mb-5">
-                  <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                    <Trophy className="h-4.5 w-4.5 lg:h-5 lg:w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {/* Desktop */}
-                    <p className="hidden lg:block text-sm font-semibold text-foreground">
-                      Ruleta Gratis
-                    </p>
-                    <p className="hidden lg:block text-xs text-muted-foreground mt-0.5">
-                      Premios del bar
-                    </p>
-                    {/* Mobile */}
-                    <p className="lg:hidden text-sm sm:text-base font-semibold text-foreground">
-                      {freeSpinsAvailable} jugadas gratuitas disponibles
-                    </p>
-                    <p className="lg:hidden text-xs text-muted-foreground mt-0.5">
-                      Juega gratis y gana premios instantáneos del bar!
-                    </p>
-                  </div>
-                </div>
-
-                {/* Desktop: big number + feature list */}
-                <div className="hidden lg:flex flex-col flex-1 items-center justify-center py-2 gap-4">
-                  <div className="flex flex-col items-center">
-                    <p
-                      className={cn(
-                        "text-6xl font-bold tabular-nums font-display",
-                        hasFreeSpins ? "text-primary" : "text-muted-foreground",
-                      )}
-                    >
-                      {freeSpinsAvailable}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
-                      jugadas disponibles
-                    </p>
-                  </div>
-                  <div className="w-full space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Gift className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span>Gana cervezas, tragos y más</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span>Se renuevan cada día</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Button */}
-                <div className="mt-auto">
-                  <Button
-                    onClick={onPlayClick}
-                    disabled={!hasFreeSpins}
-                    className={cn(
-                      "w-full h-11 sm:h-12 text-sm sm:text-base font-bold rounded-xl relative overflow-hidden",
-                      hasFreeSpins
-                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                        : "bg-muted/80 text-muted-foreground cursor-not-allowed",
-                    )}
-                  >
-                    <span className="relative z-10 flex items-center justify-center gap-2 uppercase tracking-wider">
-                      <Trophy className="h-4 w-4" />
-                      {hasFreeSpins ? "Jugar gratis" : "Sin jugadas"}
-                    </span>
-                    {hasFreeSpins && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer pointer-events-none" />
-                    )}
-                  </Button>
-
-                  {!hasFreeSpins && (
-                    <p className="text-center text-xs text-muted-foreground mt-2.5 flex items-center justify-center gap-1.5">
-                      <Clock className="h-3 w-3" />
-                      Vuelve mañana para obtener más jugadas gratis
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* ===== CARD 2: POZO GLOBAL ===== */}
+            {/* ===== CARD 1: POZO GLOBAL ===== */}
             <section className="opacity-0 animate-fade-in-up animation-delay-200">
               <div
                 className="h-full rounded-2xl border border-primary/20 bg-card/80 backdrop-blur-sm p-4 sm:p-5 lg:p-6 relative overflow-hidden flex flex-col"
@@ -339,9 +265,93 @@ export function WelcomeScreen({
                       <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                     </span>
                     {canPlayPool && (
-                      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                      <div className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                     )}
                   </button>
+                </div>
+              </div>
+            </section>
+
+            {/* ===== CARD 2: RULETA GRATIS ===== */}
+            <section className="opacity-0 animate-fade-in-up animation-delay-300">
+              <div className="h-full rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm p-4 sm:p-5 lg:p-6 flex flex-col">
+                {/* Header */}
+                <div className="flex items-start gap-3 mb-3 lg:mb-5">
+                  <div className="shrink-0 w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Trophy className="h-4.5 w-4.5 lg:h-5 lg:w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {/* Desktop */}
+                    <p className="hidden lg:block text-sm font-semibold text-foreground">
+                      Ruleta Gratis
+                    </p>
+                    <p className="hidden lg:block text-xs text-muted-foreground mt-0.5">
+                      Premios del bar
+                    </p>
+                    {/* Mobile */}
+                    <p className="lg:hidden text-sm sm:text-base font-semibold text-foreground">
+                      {freeSpinsAvailable} jugadas gratuitas disponibles
+                    </p>
+                    <p className="lg:hidden text-xs text-muted-foreground mt-0.5">
+                      Juega gratis y gana premios instantáneos del bar!
+                    </p>
+                  </div>
+                </div>
+
+                {/* Desktop: big number + feature list */}
+                <div className="hidden lg:flex flex-col flex-1 items-center justify-center py-2 gap-4">
+                  <div className="flex flex-col items-center">
+                    <p
+                      className={cn(
+                        "text-6xl font-bold tabular-nums font-display",
+                        hasFreeSpins ? "text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {freeSpinsAvailable}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
+                      jugadas disponibles
+                    </p>
+                  </div>
+                  <div className="w-full space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Gift className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>Gana cervezas, tragos y más</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>Se renuevan cada día</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Button */}
+                <div className="mt-auto">
+                  <Button
+                    onClick={onPlayClick}
+                    disabled={!hasFreeSpins}
+                    className={cn(
+                      "w-full h-11 sm:h-12 text-sm sm:text-base font-bold rounded-xl relative overflow-hidden",
+                      hasFreeSpins
+                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                        : "bg-muted/80 text-muted-foreground cursor-not-allowed",
+                    )}
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-2 uppercase tracking-wider">
+                      <Trophy className="h-4 w-4" />
+                      {hasFreeSpins ? "Jugar gratis" : "Sin jugadas"}
+                    </span>
+                    {hasFreeSpins && (
+                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/15 to-transparent animate-shimmer pointer-events-none" />
+                    )}
+                  </Button>
+
+                  {!hasFreeSpins && (
+                    <p className="text-center text-xs text-muted-foreground mt-2.5 flex items-center justify-center gap-1.5">
+                      <Clock className="h-3 w-3" />
+                      Vuelve mañana para obtener más jugadas gratis
+                    </p>
+                  )}
                 </div>
               </div>
             </section>

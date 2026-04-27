@@ -171,7 +171,7 @@ export function PoolPromoStrip({
               <div
                 className="font-display text-[9px] font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-2"
               >
-                Participa por los siguiente premios!
+                Participa por los siguiente premios
               </div>
               <div
                 key={current?.id + "-" + featured}

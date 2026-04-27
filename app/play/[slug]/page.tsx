@@ -366,6 +366,7 @@ export default function BarGamePage() {
               costPerPlay: pool?.costPerPlay ?? 1000,
             }}
             userBalance={user?.balance ?? 0}
+            banners={banners}
             onPlayClick={() => {
               setServerResults(null);
               setServerResultInfo(null);
