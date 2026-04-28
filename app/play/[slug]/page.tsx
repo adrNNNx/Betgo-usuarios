@@ -11,7 +11,7 @@ import {
   type BannerItem,
 } from "@/services/game.service";
 import {
-  getPrizesByBarAndGlobal,
+  getGlobalPrizes,
   type PrizeItem,
 } from "@/services/prize.service";
 import { Loader2 } from "lucide-react";
@@ -153,7 +153,7 @@ export default function BarGamePage() {
         getActiveBanners(loadedBar.id)
           .then(setBanners)
           .catch(() => {});
-        getPrizesByBarAndGlobal(loadedBar.id)
+        getGlobalPrizes()
           .then(setPrizes)
           .catch(() => {});
       }
