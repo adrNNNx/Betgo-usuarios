@@ -149,7 +149,14 @@ export default function Home() {
           <WelcomeScreen
             bar={bar}
             freeSpinsAvailable={freeSpinsAvailable}
+            pool={{ currentAmount: potAmount, costPerPlay: spinCost }}
+            userBalance={user?.balance ?? 0}
+            banners={[]}
             onPlayClick={handlePlayFree}
+            onPlayPoolClick={handlePlayGlobalPot}
+            onLoadBalanceClick={() =>
+              alert("Función de carga de saldo - integrar con QR del mozo")
+            }
           />
         );
 
@@ -159,9 +166,9 @@ export default function Home() {
 
               {/* Slot Machine */}
               <SlotMachine
-                result={currentSymbols}
-                isSpinning={isSpinning}
-                onSpinComplete={handleSpinComplete}
+                symbols={[]}
+                freeSpinsRemaining={freeSpinsAvailable}
+                onRequestSpin={handlePlayFree}
               />
 
 
@@ -179,6 +186,7 @@ export default function Home() {
             result={gameResult}
             user={gameUser}
             spinCost={spinCost}
+            bar={{ name: bar.name, logoUrl: bar.logoUrl }}
             onPlayGlobalPot={handlePlayGlobalPot}
             onLoadBalance={() =>
               alert("Función de carga de saldo - integrar con QR del mozo")
