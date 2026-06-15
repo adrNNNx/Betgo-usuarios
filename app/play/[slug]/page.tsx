@@ -367,6 +367,7 @@ export default function BarGamePage() {
             }}
             userBalance={user?.balance ?? 0}
             banners={banners}
+            poolPrizes={prizes}
             onPlayClick={() => {
               setServerResults(null);
               setServerResultInfo(null);
