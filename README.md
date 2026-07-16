@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Betgo Usuarios
 
-## Getting Started
+Frontend de usuarios de Betgo. Next.js 16 (App Router) + React 19, TypeScript, Tailwind CSS y componentes shadcn/ui (Radix).
 
-First, run the development server:
+## Requisitos
+
+- Node.js 20+
+- npm
+- Docker + Docker Compose (solo si se levanta por Docker)
+
+## Variables de entorno
+
+Copiar `.env.example` a `.env` y ajustar:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Variable | Descripción |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | URL base del backend. En Docker se bakea en el build: si cambia, hay que rebuildar la imagen. |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Levantar en local
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+App disponible en [http://localhost:4200](http://localhost:4200).
 
-To learn more about Next.js, take a look at the following resources:
+Otros scripts:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run build   # build de producción
+npm run start   # sirve el build (puerto 4200)
+npm run lint    # eslint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Levantar con Docker
 
-## Deploy on Vercel
+El `docker-compose.yml` espera una red externa `betgo_network` (compartida con el backend). Crearla una sola vez si no existe:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+docker network create betgo_network
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Levantar:
+
+```bash
+docker-compose up -d --build
+```
+
+Ver logs:
+
+```bash
+docker-compose logs -f frontend
+```
+
+Detener:
+
+```bash
+docker-compose down
+```
+
+App disponible en [http://localhost:4200](http://localhost:4200).
+
+`NEXT_PUBLIC_API_URL` se toma del `.env` al momento del build (`docker-compose up -d --build`). Si cambia la URL del backend, hay que rebuildar la imagen para que el cambio tenga efecto.
+
+## Stack
+
+- [Next.js](https://nextjs.org/docs) (App Router)
+- React 19 + TypeScript
+- Tailwind CSS + shadcn/ui (Radix primitives)
+- Zustand (estado), React Hook Form + Zod (formularios/validación), Axios (HTTP)
