@@ -23,6 +23,10 @@ function toSlotSymbol(symbol: BarSymbolResponse, index: number): SlotSymbol {
     multiplier: symbol.isJackpot ? 20 : symbol.hasPrize ? 10 : 2,
     weight: symbol.weight,
     isGlobal: symbol.isGlobal,
+    // El pozo siempre exige los 5 carriles, no es configurable
+    minMatchToWin: symbol.isJackpot ? 5 : symbol.minMatchToWin,
+    isJackpot: symbol.isJackpot,
+    hasPrize: symbol.hasPrize,
   };
 }
 

@@ -4,7 +4,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useGameStore } from "@/store/useGameStore";
+import {
+  useGameStore,
+  useBarSymbolsData,
+  usePoolSymbolsData,
+} from "@/store/useGameStore";
 import {
   getBarPublicInfo,
   getActiveBanners,
@@ -21,7 +25,7 @@ import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ResultScreen } from "@/components/ResultScreen";
-import { SlotMachine } from "@/components/slot-machine";
+import { SlotMachine, PayoutTable, topMatch } from "@/components/slot-machine";
 import { LoadBalanceModal } from "@/components/LoadBalanceModal";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PrizesShowcase } from "@/components/PrizesShowcase";
@@ -39,6 +43,21 @@ import type { SlotSymbol } from "@/types/slot-machine-type";
 import type { SymbolType } from "@/types/game";
 
 type GameScreen = "welcome" | "playing-free" | "result" | "playing-global";
+
+/**
+ * Deriva de la tirada cuántas coincidencias hubo y con qué símbolo.
+ * El backend no manda estos datos (ver TODO-BACKEND.md).
+ */
+function resultMatch(
+  symbolIds: string[],
+  details: Array<{ id: string; name: string }>,
+) {
+  const { matchCount, symbol } = topMatch(symbolIds.map((id) => ({ id })));
+  return {
+    matchCount,
+    matchSymbolLabel: details.find((d) => d.id === symbol?.id)?.name,
+  };
+}
 
 export default function BarGamePage() {
   const params = useParams();
@@ -70,6 +89,10 @@ export default function BarGamePage() {
   const { symbols: poolSymbols, usingCustomSymbols: usingPoolSymbols } =
     usePoolSymbols();
 
+  // Símbolos crudos del backend, para la tabla de pagos
+  const rawBarSymbols = useBarSymbolsData();
+  const rawPoolSymbols = usePoolSymbolsData();
+
   // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
   const [isScreenVisible, setIsScreenVisible] = useState(true);
@@ -85,6 +108,7 @@ export default function BarGamePage() {
   const [serverResultInfo, setServerResultInfo] = useState<{
     isWinner: boolean;
     prize?: {
+      id: string;
       name: string;
       value?: number;
       imageUrl?: string | null;
@@ -182,6 +206,7 @@ export default function BarGamePage() {
         isWinner: result.isWinner,
         prize: result.prize
           ? {
+              id: result.prize.id,
               name: result.prize.name,
               value: result.prize.value,
               imageUrl: result.prize.imageUrl ?? null,
@@ -216,6 +241,7 @@ export default function BarGamePage() {
         isWinner: result.isWinner,
         prize: result.prize
           ? {
+              id: result.prize.id,
               name: result.prize.name,
               value: result.prize.value,
               imageUrl: result.prize.imageUrl ?? null,
@@ -409,6 +435,8 @@ export default function BarGamePage() {
               serverError={spinError}
             />
 
+            <PayoutTable symbols={rawBarSymbols} className="mt-4 px-1" />
+
             {/* Botón volver */}
             <button
               onClick={handleBackToHome}
@@ -431,6 +459,7 @@ export default function BarGamePage() {
             result={{
               isWin: lastResult.isWinner,
               symbols: lastResult.symbols as SymbolType[],
+              ...resultMatch(lastResult.symbols, lastResult.symbolDetails),
               prize: lastResult.prize
                 ? {
                     id: lastResult.prize.id,
@@ -439,8 +468,10 @@ export default function BarGamePage() {
                       ? `Código de reclamo: ${lastResult.prize.claimCode}`
                       : lastResult.prize.name,
                     value: lastResult.prize.value ?? 0,
+                    // El pozo es el premio sintético con id 'jackpot'.
+                    // prize.type viene del catálogo y no sirve para distinguirlo.
                     type:
-                      lastResult.prize.type === "jackpot" ? "jackpot" : "local",
+                      lastResult.prize.id === "jackpot" ? "jackpot" : "local",
                     stock: 0,
                     isActive: true,
                     imageUrl: lastResult.prize.imageUrl ?? undefined,
@@ -497,6 +528,12 @@ export default function BarGamePage() {
               serverResultInfo={serverResultInfo}
               onAnimationComplete={handlePoolAnimationComplete}
               serverError={spinError}
+            />
+
+            <PayoutTable
+              symbols={rawPoolSymbols}
+              showJackpot
+              className="mt-4 px-1"
             />
 
             {/* Botón volver */}

@@ -55,32 +55,48 @@ export function generateReelStrip(
 }
 
 /**
+ * Símbolo más repetido de la tirada y cuántas veces salió.
+ *
+ * Con matchCount >= 3 el símbolo más repetido es siempre único
+ * (en 5 carriles no puede haber dos símbolos con 3+ repeticiones),
+ * así que no hay empates que desambiguar en los casos que pagan.
+ */
+export function topMatch<T extends { id: string }>(
+  results: T[]
+): { matchCount: number; symbol: T | null } {
+  const counts: Record<string, number> = {};
+  let matchCount = 0;
+  let symbol: T | null = null;
+
+  for (const s of results) {
+    counts[s.id] = (counts[s.id] || 0) + 1;
+    if (counts[s.id] > matchCount) {
+      matchCount = counts[s.id];
+      symbol = s;
+    }
+  }
+
+  return { matchCount, symbol };
+}
+
+/**
  * Verificar si hay una victoria en los resultados.
- * Gana si todos los símbolos son iguales (5 de 5).
+ * Cada símbolo paga desde su propio umbral (minMatchToWin).
+ *
+ * Solo se usa como fallback en modo demo: cuando hay respuesta del
+ * servidor, `isWinner` es la autoridad (el cliente no conoce el stock).
  */
 export function checkWin(results: SlotSymbol[]): {
   isWin: boolean;
   matchCount: number;
   symbol: SlotSymbol | null;
 } {
-  if (results.length === 0)
-    return { isWin: false, matchCount: 0, symbol: null };
-
-  const counts: Record<string, number> = {};
-  let maxCount = 0;
-  let maxSymbol: SlotSymbol | null = null;
-
-  for (const s of results) {
-    counts[s.id] = (counts[s.id] || 0) + 1;
-    if (counts[s.id] > maxCount) {
-      maxCount = counts[s.id];
-      maxSymbol = s;
-    }
-  }
+  const { matchCount, symbol } = topMatch(results);
 
   return {
-    isWin: maxCount >= results.length, // Todos deben coincidir
-    matchCount: maxCount,
-    symbol: maxSymbol,
+    // ponytail: sin minMatchToWin (símbolos demo) se exige la tirada completa
+    isWin: symbol !== null && matchCount >= (symbol.minMatchToWin ?? results.length),
+    matchCount,
+    symbol,
   };
 }

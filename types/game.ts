@@ -16,7 +16,7 @@ export interface Symbol {
   type: SymbolType;
   image: string;
   weight: number; // Probabilidad
-  prizeId?: string; // Premio asociado si todos los símbolos coinciden
+  prizeId?: string; // Premio que paga el símbolo desde su propio umbral (min_match_to_win)
 }
 
 export interface Prize {
@@ -61,6 +61,10 @@ export interface User {
 export interface GameResult {
   symbols: SymbolType[];
   isWin: boolean;
+  /** Cuántas veces salió el símbolo más repetido (derivado de symbols) */
+  matchCount?: number;
+  /** Label del símbolo con el que se ganó */
+  matchSymbolLabel?: string;
   prize?: Prize;
   newBalance: number;
   newPotAmount: number;

@@ -38,6 +38,9 @@ export function ResultScreen({
 }: ResultScreenProps) {
   const canPlay = user.isAuthenticated && user.balance >= spinCost;
   const isWin = result.isWin;
+  // El pozo llega como premio sintético con id 'jackpot'. Comparar por
+  // prize.type sería incorrecto: un premio físico también puede tenerlo.
+  const isJackpot = result.prize?.id === "jackpot";
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -118,10 +121,14 @@ export function ResultScreen({
           {isWin ? (
             <>
               <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
-                ¡Felicidades!
+                {isJackpot ? "¡Ganaste el pozo!" : "¡Felicidades!"}
               </h1>
               <p className="mt-1.5 text-sm text-primary sm:text-base">
-                Ganaste un premio gratis
+                {isJackpot
+                  ? "El pozo global completo es tuyo"
+                  : result.matchCount && result.matchSymbolLabel
+                    ? `${result.matchCount} iguales de ${result.matchSymbolLabel}`
+                    : "Ganaste un premio"}
               </p>
             </>
           ) : (
@@ -168,8 +175,17 @@ export function ResultScreen({
               ) : null}
             </div>
 
-            {/* Divisoria */}
-            <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+            {/* Divisoria (solo si hay algo debajo) */}
+            {(isJackpot || result.prize.claimQrCode) && (
+              <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+            )}
+
+            {/* Jackpot: la plata va directo al saldo, no hay nada que reclamar */}
+            {isJackpot && (
+              <p className="px-6 py-4 text-center text-xs text-muted-foreground sm:text-sm">
+                Acreditado a tu saldo — ya podés usarlo para jugar
+              </p>
+            )}
 
             {/* QR + Código */}
             {result.prize.claimQrCode && (

@@ -9,7 +9,7 @@ import { Loader2, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/game-logic";
 import { cn } from "@/lib/utils";
 
-import { getRandomSymbol, checkWin } from "./symbols";
+import { getRandomSymbol, checkWin, topMatch } from "./symbols";
 import {
   SlotMachineConfig,
   SpinState,
@@ -47,6 +47,8 @@ interface SlotMachineProps {
   serverResultInfo?: {
     isWinner: boolean;
     prize?: {
+      /** 'jackpot' = pozo global ganado. Ver ResultScreen / TODO-BACKEND.md */
+      id: string;
       name: string;
       value?: number;
       imageUrl?: string | null;
@@ -171,12 +173,13 @@ export function SlotMachine({
   useEffect(() => {
     if (results.length === reelCount && results.length > 0) {
       if (serverResultInfo) {
-        const matchSymbol = results[0];
-        const allMatch = results.every((s) => s.id === matchSymbol.id);
+        // El servidor no manda matchCount ni el símbolo ganador: se derivan
+        // contando la tirada. `isWinner` sigue siendo la autoridad.
+        const { matchCount, symbol } = topMatch(results);
         setWinInfo({
           isWin: serverResultInfo.isWinner,
-          matchCount: allMatch ? reelCount : 0,
-          symbol: serverResultInfo.isWinner ? matchSymbol : null,
+          matchCount,
+          symbol: serverResultInfo.isWinner ? symbol : null,
         });
 
         if (serverResultInfo.isWinner) {
@@ -223,6 +226,9 @@ export function SlotMachine({
   }, [handleSpin]);
 
   const isSpinning = spinState === "spinning";
+  // El pozo se distingue por el id sintético, NO por prize.type: un premio
+  // físico común también puede tener type "jackpot" (es del catálogo).
+  const isJackpotWin = serverResultInfo?.prize?.id === "jackpot";
   const isDisabled =
     isSpinning || !canSpinNow || spinState === "won" || isWaitingForServer.current;
 
@@ -596,9 +602,9 @@ export function SlotMachine({
               )}
             </div>
             <h2 className="mt-3 text-2xl font-black uppercase sm:mt-4 sm:text-3xl text-primary font-display">
-              {isPoolMode ? "¡JACKPOT!" : "¡Ganaste!"}
+              {isJackpotWin ? "¡JACKPOT!" : "¡Ganaste!"}
             </h2>
-            {serverResultInfo?.prize ? (
+            {serverResultInfo?.prize && (
               <>
                 <p className="mt-1 text-sm sm:mt-2 sm:text-lg text-muted-foreground">
                   {serverResultInfo.prize.name}
@@ -614,9 +620,10 @@ export function SlotMachine({
                   </p>
                 ) : null}
               </>
-            ) : (
-              <p className="mt-1 text-sm sm:mt-2 sm:text-lg text-muted-foreground">
-                {winInfo.matchCount} coincidencias de {winInfo.symbol?.label}
+            )}
+            {winInfo.symbol && (
+              <p className="mt-3 text-xs sm:text-sm text-muted-foreground/70">
+                {winInfo.matchCount} iguales de {winInfo.symbol.label}
               </p>
             )}
           </div>

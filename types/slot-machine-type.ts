@@ -11,6 +11,12 @@ export interface SlotSymbol {
   weight?: number;
   /** Whether this is a global symbol (shared across all bars) */
   isGlobal?: boolean;
+  /** Desde cuántos carriles iguales paga este símbolo (3, 4 o 5) */
+  minMatchToWin?: number;
+  /** Entrega el pozo global (siempre exige los 5 carriles) */
+  isJackpot?: boolean;
+  /** Tiene un premio propio asociado */
+  hasPrize?: boolean;
 }
 
 export interface SlotMachineConfig {

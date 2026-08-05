@@ -39,6 +39,13 @@ export interface BarSymbolResponse {
   hasPrize: boolean;
   isGlobal: boolean;
   isJackpot: boolean;
+  /**
+   * Desde cuántos carriles iguales paga el símbolo (3, 4 o 5).
+   * Opcional por compatibilidad: sin este campo la tabla de pagos no se muestra.
+   */
+  minMatchToWin?: number;
+  /** Nombre del premio que paga el símbolo (null si no tiene) */
+  prizeName?: string | null;
 }
 
 export interface PlayResultResponse {
