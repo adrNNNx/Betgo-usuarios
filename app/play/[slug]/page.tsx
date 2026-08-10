@@ -26,6 +26,7 @@ import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ResultScreen } from "@/components/ResultScreen";
 import { SlotMachine, PayoutTable, topMatch } from "@/components/slot-machine";
+import { PREMIOS_RETURN_KEY } from "@/lib/prize-claim";
 import { LoadBalanceModal } from "@/components/LoadBalanceModal";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PrizesShowcase } from "@/components/PrizesShowcase";
@@ -330,6 +331,20 @@ export default function BarGamePage() {
     loadPool();
   };
 
+  // ==================== HANDLER: MIS PREMIOS ====================
+  // Guarda de dónde vino para que el "volver" de /premios sea honesto.
+  const handlePrizesClick = () => {
+    try {
+      sessionStorage.setItem(
+        PREMIOS_RETURN_KEY,
+        JSON.stringify({ path: `/play/${slug}`, label: bar?.name ?? "" }),
+      );
+    } catch {
+      // sin sessionStorage el volver cae al fallback
+    }
+    router.push("/premios");
+  };
+
   // ==================== HANDLER: LOGOUT ====================
   const handleLogout = async () => {
     useGameStore.getState().reset();
@@ -561,7 +576,7 @@ export default function BarGamePage() {
     <>
       <Header
         onProfileClick={() => toast.info("Mi Perfil - Por implementar")}
-        onPrizesClick={() => toast.info("Mis Premios - Por implementar")}
+        onPrizesClick={handlePrizesClick}
         onHistoryClick={() => toast.info("Historial - Por implementar")}
         onLogout={handleLogout}
       />
