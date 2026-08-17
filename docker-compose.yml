@@ -5,8 +5,9 @@ version: '3.8'
 #   Ver logs:   docker-compose logs -f frontend
 #   Detener:    docker-compose down
 #
-# NEXT_PUBLIC_API_URL se bake en el build — si cambia la IP del servidor,
-# hay que rebuildar: docker-compose up -d --build
+#
+# Sin default: si falta, el build corta con un mensaje claro en vez de publicar
+# una app que apunta a localhost desde el navegador del jugador.
 
 services:
   frontend:
@@ -14,7 +15,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000/api}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     container_name: betgo_frontend
     restart: unless-stopped
     ports:

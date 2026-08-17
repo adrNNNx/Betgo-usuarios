@@ -3,8 +3,16 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-ARG NEXT_PUBLIC_API_URL=http://localhost:3000/api
+ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+RUN test -n "$NEXT_PUBLIC_API_URL" || { \
+      echo ""; \
+      echo "ERROR: falta NEXT_PUBLIC_API_URL."; \
+      echo "Debe ser la URL pública del backend."; \
+      echo "  Ej. local:    http://localhost:3000/api"; \
+      echo ""; \
+      exit 1; \
+    }
 RUN npm run build
 
 FROM node:20-alpine
