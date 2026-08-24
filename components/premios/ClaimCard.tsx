@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Clock, Copy, Check, Maximize2, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 import type { MyPrizeClaim } from "@/services/prize-claim.service";
 import {
   formatTimeLeft,
@@ -81,7 +82,7 @@ export function ClaimCard({ claim, now, className }: ClaimCardProps) {
           <div className="h-15 w-15 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-muted/40">
             {claim.prize.imageUrl ? (
               <img
-                src={claim.prize.imageUrl}
+                src={cdn(claim.prize.imageUrl, 128)}
                 alt=""
                 className="h-full w-full object-cover"
                 loading="lazy"

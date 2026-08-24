@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { cdn } from "@/lib/cdn";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -61,7 +62,7 @@ export function HomeScreenAuth({
         {barImageUrl ? (
           <div className="relative w-16 h-16 rounded-full overflow-hidden ring-2 ring-primary/30 shadow-lg shadow-primary/20">
             <img
-              src={barImageUrl}
+              src={cdn(barImageUrl, 128)}
               alt={`Logo de ${barName}`}
               className="w-full h-full object-cover"
             />
@@ -126,7 +127,7 @@ export function HomeScreenAuth({
                 <div className="absolute inset-0 -z-10 rounded-full bg-primary/10 blur-xl scale-110" />
                 <div className="relative w-48 h-48 lg:w-60 lg:h-60 rounded-full overflow-hidden">
                   <img
-                    src={barImageUrl}
+                    src={cdn(barImageUrl, 512)}
                     alt={`Logo de ${barName}`}
                     className="w-full h-full object-cover"
                   />

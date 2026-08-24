@@ -3,6 +3,7 @@
 
 import { CircleCheck, CircleSlash, History } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 import type { MyPrizeClaim } from "@/services/prize-claim.service";
 import { effectiveStatus, formatShortDate, sortByRecency } from "@/lib/prize-claim";
 
@@ -57,7 +58,7 @@ export function ClaimHistory({
               >
                 {c.prize.imageUrl && (
                   <img
-                    src={c.prize.imageUrl}
+                    src={cdn(c.prize.imageUrl, 96)}
                     alt=""
                     className="h-full w-full object-cover"
                     loading="lazy"

@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 import { formatCurrency } from "@/lib/game-logic";
 import {
   validatePrizeClaim,
@@ -307,7 +308,7 @@ export function ValidatePrizesTab({ barId }: ValidatePrizesTabProps) {
               {validatedClaim.prize.imageUrl ? (
                 <div className="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-muted/40 border border-border/40">
                   <img
-                    src={validatedClaim.prize.imageUrl}
+                    src={cdn(validatedClaim.prize.imageUrl, 128)}
                     alt={validatedClaim.prize.name}
                     className="w-full h-full object-contain p-1"
                     crossOrigin="anonymous"
@@ -429,7 +430,7 @@ export function ValidatePrizesTab({ barId }: ValidatePrizesTabProps) {
                 {claim.prize.imageUrl ? (
                   <div className="shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-muted/40 border border-border/30">
                     <img
-                      src={claim.prize.imageUrl}
+                      src={cdn(claim.prize.imageUrl, 96)}
                       alt={claim.prize.name}
                       className="w-full h-full object-contain p-0.5"
                       crossOrigin="anonymous"

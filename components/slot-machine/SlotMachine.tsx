@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/game-logic";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 
 import { getRandomSymbol, checkWin, topMatch } from "./symbols";
 import {
@@ -289,7 +290,7 @@ export function SlotMachine({
             {barLogoUrl ? (
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-primary/20">
-                  <img src={barLogoUrl} alt={title} className="w-full h-full object-cover" />
+                  <img src={cdn(barLogoUrl, 96)} alt={title} className="w-full h-full object-cover" />
                 </div>
                 <span className="text-sm text-muted-foreground font-medium">{title}</span>
               </div>
@@ -303,7 +304,7 @@ export function SlotMachine({
             {barLogoUrl ? (
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-primary/20">
-                  <img src={barLogoUrl} alt={title} className="w-full h-full object-cover" />
+                  <img src={cdn(barLogoUrl, 96)} alt={title} className="w-full h-full object-cover" />
                 </div>
                 <span className="text-sm text-muted-foreground font-medium">{title}</span>
               </div>
@@ -583,14 +584,14 @@ export function SlotMachine({
             <div className="flex items-center justify-center animate-bounce-subtle">
               {serverResultInfo?.prize?.imageUrl ? (
                 <img
-                  src={serverResultInfo.prize.imageUrl}
+                  src={cdn(serverResultInfo.prize.imageUrl, 256)}
                   alt={serverResultInfo.prize.name}
                   className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-lg"
                   crossOrigin="anonymous"
                 />
               ) : winInfo.symbol?.content?.startsWith("http") ? (
                 <img
-                  src={winInfo.symbol.content}
+                  src={cdn(winInfo.symbol.content, 256)}
                   alt={winInfo.symbol.label}
                   className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-lg"
                   crossOrigin="anonymous"

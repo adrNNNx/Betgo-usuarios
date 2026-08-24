@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 import { formatCurrency } from "@/lib/game-logic";
 import type { PrizeItem } from "@/services/prize.service";
 
@@ -375,7 +376,7 @@ function PrizeIcon({ prize }: { prize: PrizeItem }) {
     >
       {prize.imageUrl ? (
         <img
-          src={prize.imageUrl}
+          src={cdn(prize.imageUrl, 128)}
           alt={prize.name}
           className="w-full h-full object-cover"
           crossOrigin="anonymous"

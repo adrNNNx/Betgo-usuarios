@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SlotSymbol } from "../../types/slot-machine-type";
+import { cdn } from "@/lib/cdn";
 import { generateReelStrip } from "./symbols";
 
 interface SlotReelProps {
@@ -199,7 +200,8 @@ export function SlotReel({
             >
               {symbol.content.startsWith("http") ? (
                 <img
-                  src={symbol.content}
+                  // 56px como máximo en desktop (w-14) → 128 para retina
+                  src={cdn(symbol.content, 128)}
                   alt={symbol.label}
                   className={`${imgSize} object-contain`}
                   crossOrigin="anonymous"

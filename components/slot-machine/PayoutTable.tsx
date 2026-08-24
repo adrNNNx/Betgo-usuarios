@@ -3,6 +3,7 @@
 
 import type { BarSymbolResponse } from "@/services/game.service";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 
 interface PayoutTableProps {
   symbols: BarSymbolResponse[];
@@ -56,7 +57,7 @@ export function PayoutTable({
           <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
             {s.imageUrl && (
               <img
-                src={s.imageUrl}
+                src={cdn(s.imageUrl, 96)}
                 alt=""
                 className="h-8 w-8 shrink-0 object-contain"
                 crossOrigin="anonymous"

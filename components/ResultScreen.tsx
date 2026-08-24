@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 import { formatCurrency } from "@/lib/game-logic";
 import type { GameResult, User } from "@/types/game";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,7 @@ export function ResultScreen({
             {bar.logoUrl ? (
               <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-primary/30">
                 <img
-                  src={bar.logoUrl}
+                  src={cdn(bar.logoUrl, 96)}
                   alt={bar.name}
                   className="h-full w-full object-cover"
                 />
@@ -158,7 +159,7 @@ export function ResultScreen({
               {result.prize.imageUrl && (
                 <div className="mb-4 flex h-28 w-28 items-center justify-center sm:h-32 sm:w-32">
                   <img
-                    src={result.prize.imageUrl}
+                    src={cdn(result.prize.imageUrl, 256)}
                     alt={result.prize.name}
                     className="h-full w-full object-contain drop-shadow-lg"
                     crossOrigin="anonymous"

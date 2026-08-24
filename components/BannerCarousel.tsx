@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 import type { BannerItem } from "@/services/game.service";
 
 interface BannerCarouselProps {
@@ -95,7 +96,8 @@ export function BannerCarousel({
               }}
             >
               <img
-                src={banner.imageUrl}
+                // La caja se topa en 662px de ancho → 1400 para retina
+                src={cdn(banner.imageUrl, 1400)}
                 alt={banner.title}
                 className="w-full h-full object-cover"
                 crossOrigin="anonymous"

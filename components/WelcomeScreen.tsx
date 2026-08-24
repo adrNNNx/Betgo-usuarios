@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { cdn } from "@/lib/cdn";
 import { formatCurrency } from "@/lib/game-logic";
 import { Button } from "@/components/ui/button";
 import {
@@ -217,7 +218,7 @@ function PoolCard({
                 >
                   {cur.imageUrl ? (
                     <img
-                      src={cur.imageUrl}
+                      src={cdn(cur.imageUrl, 128)}
                       alt={cur.name}
                       className="w-full h-full object-cover"
                       crossOrigin="anonymous"
@@ -387,7 +388,7 @@ export function WelcomeScreen({
                   "lg:w-24 lg:h-24 lg:ring-offset-4 lg:ring-offset-background lg:shadow-2xl lg:shadow-primary/20",
                 )}
               >
-                <img src={bar.logoUrl} alt={bar.name} className="w-full h-full object-cover" />
+                <img src={cdn(bar.logoUrl, 256)} alt={bar.name} className="w-full h-full object-cover" />
               </div>
             ) : (
               <div
