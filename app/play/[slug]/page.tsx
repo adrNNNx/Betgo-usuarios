@@ -13,6 +13,7 @@ import {
   getBarPublicInfo,
   getActiveBanners,
   type BannerItem,
+  type PlayResultResponse,
 } from "@/services/game.service";
 import {
   getGlobalPrizes,
@@ -24,9 +25,15 @@ import { toast } from "sonner";
 // Componentes
 import { Header } from "@/components/Header";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
-import { ResultScreen } from "@/components/ResultScreen";
+import {
+  ResultadoScreen,
+  type ResultadoOutcome,
+} from "@/components/resultado";
+import { QRCodeDisplay } from "@/components/QRCodeDisplay";
+import { useCopyCode } from "@/components/premios/useCopyCode";
 import { SlotMachine, PayoutTable, topMatch } from "@/components/slot-machine";
 import { PREMIOS_RETURN_KEY } from "@/lib/prize-claim";
+import { jackpotFolio } from "@/lib/jackpot";
 import { LoadBalanceModal } from "@/components/LoadBalanceModal";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PrizesShowcase } from "@/components/PrizesShowcase";
@@ -41,7 +48,6 @@ import {
 
 // Types
 import type { SlotSymbol } from "@/types/slot-machine-type";
-import type { SymbolType } from "@/types/game";
 
 type GameScreen = "welcome" | "playing-free" | "result" | "playing-global";
 
@@ -58,6 +64,94 @@ function resultMatch(
     matchCount,
     matchSymbolLabel: details.find((d) => d.id === symbol?.id)?.name,
   };
+}
+
+const dateTimeFmt = new Intl.DateTimeFormat("es-PY", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const dateFmt = new Intl.DateTimeFormat("es-PY", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+/** "12/08/2026 · 20:41" */
+function fmtPlayedAt(ms: number): string {
+  const p = dateTimeFmt.formatToParts(new Date(ms));
+  const get = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${get("day")}/${get("month")}/${get("year")} · ${get("hour")}:${get("minute")}`;
+}
+
+/**
+ * Traduce la respuesta del backend al outcome que entiende ResultadoScreen.
+ *
+ * `playedAt` es el reloj del cliente al momento de la jugada: el backend no
+ * devuelve la fecha de la jugada (ver TODO-BACKEND.md).
+ */
+function buildOutcome(
+  result: PlayResultResponse,
+  barName: string,
+  mode: "free" | "pool",
+  playedAt: number,
+): ResultadoOutcome {
+  const { matchCount, matchSymbolLabel } = resultMatch(
+    result.symbols,
+    result.symbolDetails,
+  );
+  const comboLabel =
+    matchCount && matchSymbolLabel
+      ? `${matchCount} iguales de ${matchSymbolLabel}`
+      : undefined;
+  const prize = result.prize;
+
+  // El pozo ganado llega como premio sintético con id 'jackpot', no por type.
+  if (prize?.id === "jackpot") {
+    return {
+      kind: "jackpot",
+      jackpot: {
+        amount: prize.value ?? 0,
+        // TODO(backend): folio propio, estado del retiro y fecha de la jugada.
+        // Hoy el folio se deriva del playId para que sea rastreable.
+        code: jackpotFolio(result.playId),
+        dateLabel: fmtPlayedAt(playedAt),
+        shortDateLabel: dateFmt.format(new Date(playedAt)),
+        playId: `#${result.playId.slice(0, 8)}`,
+        venueName: barName,
+        comboLabel,
+        // status queda en "pending_contact" (default) hasta que el backend
+        // devuelva el estado real del retiro. contactHref: falta definir canal.
+      },
+    };
+  }
+
+  if (result.isWinner && prize) {
+    return {
+      kind: "prize",
+      prize: {
+        name: prize.name,
+        imageUrl: prize.imageUrl,
+        code: prize.claimCode ?? "",
+        qr: prize.claimCode ? (
+          <QRCodeDisplay value={prize.claimCode} size={128} quietZone={0} />
+        ) : undefined,
+        comboLabel,
+        // La ventana de reclamo son 7 días (createPrizeClaim en el backend).
+        expiryLabel: "Tenés 7 días para reclamarlo",
+      },
+    };
+  }
+
+  return mode === "pool"
+    ? {
+        kind: "none",
+        title: "Saldo insuficiente",
+        sub: "Cargá saldo para seguir jugando por el pozo",
+      }
+    : { kind: "none" };
 }
 
 export default function BarGamePage() {
@@ -94,6 +188,8 @@ export default function BarGamePage() {
   const rawBarSymbols = useBarSymbolsData();
   const rawPoolSymbols = usePoolSymbolsData();
 
+  const { copy: copyCode } = useCopyCode();
+
   // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
   const [isScreenVisible, setIsScreenVisible] = useState(true);
@@ -117,6 +213,8 @@ export default function BarGamePage() {
     } | null;
   } | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
+  /** Reloj del cliente al cerrar la jugada: el backend no manda la fecha. */
+  const [playedAt, setPlayedAt] = useState(() => Date.now());
   const [showLoadBalance, setShowLoadBalance] = useState(false);
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [prizes, setPrizes] = useState<PrizeItem[]>([]);
@@ -196,6 +294,7 @@ export default function BarGamePage() {
 
     try {
       const result = await play("free", slug);
+      setPlayedAt(Date.now());
 
       // Mapear los symbolDetails del servidor a SlotSymbol[] para la animación
       const resultSymbols = mapServerResultToSlotSymbols(
@@ -232,6 +331,7 @@ export default function BarGamePage() {
 
     try {
       const result = await play("pool", slug);
+      setPlayedAt(Date.now());
 
       const resultSymbols = mapServerResultToSlotSymbols(
         result.symbolDetails,
@@ -330,6 +430,17 @@ export default function BarGamePage() {
     // Refrescar pozo y sesión
     loadPool();
   };
+
+  // ==================== HANDLER: COPIAR CÓDIGO ====================
+  // Reusa el hook de Mis Premios: tiene fallback para http plano en el bar.
+  const handleCopyCode = useCallback(
+    (code: string) => {
+      copyCode(code).then((ok) => {
+        if (ok) toast.success("Código copiado");
+      });
+    },
+    [copyCode],
+  );
 
   // ==================== HANDLER: MIS PREMIOS ====================
   // Guarda de dónde vino para que el "volver" de /premios sea honesto.
@@ -470,51 +581,20 @@ export default function BarGamePage() {
 
       case "result":
         return lastResult ? (
-          <ResultScreen
-            result={{
-              isWin: lastResult.isWinner,
-              symbols: lastResult.symbols as SymbolType[],
-              ...resultMatch(lastResult.symbols, lastResult.symbolDetails),
-              prize: lastResult.prize
-                ? {
-                    id: lastResult.prize.id,
-                    name: lastResult.prize.name,
-                    description: lastResult.prize.claimCode
-                      ? `Código de reclamo: ${lastResult.prize.claimCode}`
-                      : lastResult.prize.name,
-                    value: lastResult.prize.value ?? 0,
-                    // El pozo es el premio sintético con id 'jackpot'.
-                    // prize.type viene del catálogo y no sirve para distinguirlo.
-                    type:
-                      lastResult.prize.id === "jackpot" ? "jackpot" : "local",
-                    stock: 0,
-                    isActive: true,
-                    imageUrl: lastResult.prize.imageUrl ?? undefined,
-                    claimCode: lastResult.prize.claimCode,
-                    claimQrCode: lastResult.prize.claimQrCode,
-                  }
-                : undefined,
-              newPotAmount: pool?.currentAmount ?? 0,
-              newBalance: user?.balance ?? 0,
+          <ResultadoScreen
+            venue={{ name: bar.name, logoUrl: bar.logoUrl }}
+            outcome={buildOutcome(lastResult, bar.name, lastPlayMode, playedAt)}
+            pool={{
+              amount: pool?.currentAmount ?? 0,
+              balance: user?.balance ?? 0,
+              costPerPlay: pool?.costPerPlay ?? 1000,
             }}
-            user={{
-              id: user?.id || "",
-              isAuthenticated: true,
-              balance: user?.balance || 0,
-              freeSpinsUsed: session?.playsUsed ?? 0,
-              freeSpinsAvailable: freePlaysRemaining,
-              name: user?.name ?? undefined,
-              email: user?.email ?? undefined,
-            }}
-            spinCost={pool?.costPerPlay ?? 2000}
-            bar={{
-              name: bar.name,
-              logoUrl: bar.logoUrl,
-            }}
-            fromPool={lastPlayMode === "pool"}
-            onPlayGlobalPot={handlePlayGlobalPot}
-            onLoadBalance={() => setShowLoadBalance(true)}
-            onBackToHome={handleBackToHome}
+            playing={isPlaying}
+            onPlayPool={handlePlayGlobalPot}
+            onTopUp={() => setShowLoadBalance(true)}
+            onMyPrizes={handlePrizesClick}
+            onHome={handleBackToHome}
+            onCopyCode={handleCopyCode}
           />
         ) : null;
 
