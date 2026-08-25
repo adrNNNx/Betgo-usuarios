@@ -13,6 +13,9 @@ export function JackpotKeyframes() {
 @keyframes jk-spin{to{transform:translateX(-50%) rotate(360deg)}}
 @keyframes jk-ping{0%{box-shadow:0 0 0 0 oklch(0.75 0.14 155/.55)}70%,100%{box-shadow:0 0 0 8px oklch(0.75 0.14 155/0)}}
 @media (prefers-reduced-motion: reduce){[data-jk-anim]{animation:none!important}}
+/* Misma escala que ResultadoShell: el comprobante crece parejo en desktop. */
+@media (min-width:1024px){[data-jk-scale]{zoom:1.18}}
+@media (min-width:1536px){[data-jk-scale]{zoom:1.32}}
 `}</style>
   );
 }
@@ -23,23 +26,46 @@ const RAY_STOPS = Array.from({ length: 8 }, (_, i) => {
   return `oklch(0.78 0.15 85/.13) ${a}deg ${a + 4}deg, transparent ${a + 4}deg ${a + 22}deg`;
 }).join(", ");
 
+/**
+ * El hero recorta con `overflow: hidden`, así que todo lo que pinte tiene que
+ * llegar a transparente ANTES del borde de la columna: si no, el recorte se ve
+ * como un corte recto, y peor todavía con el conic girando.
+ *
+ * Por eso las dos capas miden lo mismo que la columna y sus máscaras cierran
+ * justo en los bordes (`50%` de radio horizontal), en vez de desbordar.
+ */
+/** Centro del resplandor a la altura del trofeo, y a cero antes de los costados. */
+const RAY_MASK = "radial-gradient(ellipse 50% 50% at 50% 22%, #000 0%, transparent 100%)";
+
+/**
+ * Difuminado del borde de arriba. Sin esto el resplandor llega al borde superior
+ * del hero casi opaco y el recorte se ve como una línea recta cruzando la
+ * pantalla. Un degradado radial centrado arriba no puede apagarse antes de su
+ * propio centro, así que el fundido va acá, en el contenedor.
+ */
+const TOP_FADE = "linear-gradient(to bottom, transparent 0, #000 70px)";
+
 export function JackpotRays({ dim }: { dim?: boolean }) {
   return (
-    <>
+    <div style={{
+      position: "absolute", inset: 0, pointerEvents: "none",
+      WebkitMaskImage: TOP_FADE, maskImage: TOP_FADE,
+      WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+    } as CSSProperties}>
       <div style={{
-        position: "absolute", inset: "-30% -30% auto", height: 340, pointerEvents: "none", opacity: dim ? 0.5 : 1,
+        position: "absolute", inset: "-30% 0 auto", height: 340, opacity: dim ? 0.5 : 1,
         background: "radial-gradient(60% 70% at 50% 0%, oklch(0.78 0.15 85/.3), transparent 68%)",
       }} />
       {!dim && (
         <div data-jk-anim style={{
-          position: "absolute", left: "50%", top: -40, width: 640, height: 640, transform: "translateX(-50%)",
-          pointerEvents: "none", animation: "jk-spin 34s linear infinite",
+          position: "absolute", left: "50%", top: -40, width: "100%", aspectRatio: "1", transform: "translateX(-50%)",
+          animation: "jk-spin 34s linear infinite",
           background: `conic-gradient(from 0deg, ${RAY_STOPS}, transparent 176deg 360deg)`,
-          WebkitMaskImage: "radial-gradient(circle at 50% 8%, #000 0%, transparent 62%)",
-          maskImage: "radial-gradient(circle at 50% 8%, #000 0%, transparent 62%)",
+          WebkitMaskImage: RAY_MASK,
+          maskImage: RAY_MASK,
         } as CSSProperties} />
       )}
-    </>
+    </div>
   );
 }
 

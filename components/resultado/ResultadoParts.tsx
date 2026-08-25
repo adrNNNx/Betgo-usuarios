@@ -14,6 +14,10 @@ export function ResultadoKeyframes() {
 @keyframes bg-sheen{0%{transform:translateX(-70%)}60%,100%{transform:translateX(70%)}}
 @keyframes bg-ping{0%{box-shadow:0 0 0 0 oklch(0.75 0.14 155/.55)}70%,100%{box-shadow:0 0 0 8px oklch(0.75 0.14 155/0)}}
 @media (prefers-reduced-motion: reduce){[data-bg-anim]{animation:none!important}}
+/* La columna está calibrada para el celular. En pantallas grandes se escala
+   entera en vez de rediseñarla: mismas proporciones, tamaño cómodo. */
+@media (min-width:1024px){[data-rs-scale]{zoom:1.18}}
+@media (min-width:1536px){[data-rs-scale]{zoom:1.32}}
 `}</style>
   );
 }
@@ -23,7 +27,7 @@ export function ResultadoShell({ header, children }: { header?: ReactNode; child
   return (
     <div style={{ background: rt.bg, color: rt.fg, fontFamily: rt.body, minHeight: "100dvh" }}>
       <ResultadoKeyframes />
-      <div style={{ maxWidth: 440, margin: "0 auto" }}>
+      <div data-rs-scale style={{ maxWidth: 440, margin: "0 auto" }}>
         {header}
         <div style={{ padding: "14px 16px 26px", display: "flex", flexDirection: "column", gap: 14 }}>
           {children}

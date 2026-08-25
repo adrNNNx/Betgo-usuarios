@@ -50,7 +50,7 @@ export function JackpotScreen({
   return (
     <div style={{ background: jt.bg, color: jt.fg, fontFamily: jt.body, minHeight: "100dvh" }}>
       <JackpotKeyframes />
-      <div style={{ maxWidth: 440, margin: "0 auto" }}>
+      <div data-jk-scale style={{ maxWidth: 440, margin: "0 auto" }}>
         <div style={{ position: "relative", zIndex: 2 }}>{header}</div>
 
         <JackpotHero
