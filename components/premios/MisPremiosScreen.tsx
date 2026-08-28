@@ -12,8 +12,10 @@ import {
   urgencyOf,
 } from "@/lib/prize-claim";
 import { useMyPrizeClaims } from "@/hooks/use-my-prize-claims";
+import { useMyJackpotClaims } from "@/hooks/use-my-jackpot-claims";
 import { ClaimCard } from "./ClaimCard";
 import { ClaimHistory } from "./ClaimHistory";
+import { JackpotClaims } from "./JackpotClaims";
 import { PremiosEmpty, PremiosError, PremiosSkeleton } from "./PremiosStates";
 
 interface MisPremiosScreenProps {
@@ -47,6 +49,8 @@ export function MisPremiosScreen({
 }: MisPremiosScreenProps) {
   const { claims, total, isLoading, isRetrying, error, retry } =
     useMyPrizeClaims();
+  // Segundo fetch, independiente: si el pozo falla, los premios se ven igual.
+  const { claims: jackpots } = useMyJackpotClaims();
   const now = useMinuteTick();
 
   // El estado efectivo se calcula contra el reloj, no se lee de `status`.
@@ -133,27 +137,22 @@ export function MisPremiosScreen({
                 ))}
               </div>
             </>
-          ) : (
+          ) : jackpots.length === 0 ? (
             <PremiosEmpty onPlay={onPlay} />
-          )}
+          ) : null}
+
+          {/*
+            El pozo va en su propia sección, no mezclado con los premios
+            físicos: no tiene QR ni mozo que lo entregue, no vence, y se cobra
+            coordinando con administración. Son dos ciclos distintos.
+          */}
+          <JackpotClaims claims={jackpots} className="mt-1" />
 
           <ClaimHistory
             claims={history}
             truncated={total > claims.length}
             className="mt-1"
           />
-
-          {/*
-            El pozo global queda deliberadamente fuera de esta lista: ganarlo
-            acredita saldo y no genera prize_claim, así que no tiene código ni
-            QR ni vencimiento. Mezclarlo rompería la promesa de la pantalla
-            ("esto se reclama con el mozo"). Se lo nombra en una línea para que
-            el usuario no lo busque acá.
-          */}
-          <p className="px-0.5 text-[11.5px] leading-relaxed text-muted-foreground/85 text-pretty">
-            Los pozos globales que ganaste no aparecen acá: se acreditan directo
-            a tu saldo, sin código ni QR.
-          </p>
         </>
       )}
     </div>

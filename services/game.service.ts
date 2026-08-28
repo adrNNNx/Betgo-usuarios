@@ -48,11 +48,32 @@ export interface BarSymbolResponse {
   prizeName?: string | null;
 }
 
+/** Estados del retiro del pozo: pending_contact → in_review → paid. */
+export type JackpotClaimStatus = "pending_contact" | "in_review" | "paid";
+
 export interface PlayResultResponse {
   playId: string;
   symbols: string[];
   symbolDetails: Array<{ id: string; name: string; imageUrl: string }>;
   isWinner: boolean;
+  /**
+   * Repeticiones del símbolo más frecuente y cuál fue.
+   * Hoy sólo vienen en `play/pool`; en free/paid se derivan contando `symbols[]`.
+   */
+  matchCount?: number;
+  winningSymbolId?: string | null;
+  /**
+   * Presente SÓLO al ganar el pozo (junto con `prize.id === 'jackpot'`).
+   * El monto NO se acredita al saldo: se retira coordinando con administración.
+   * `contactHref` es null si el backend no tiene el WhatsApp configurado.
+   */
+  jackpot?: {
+    folio: string;
+    status: JackpotClaimStatus;
+    amount: number;
+    playedAt: string;
+    contactHref: string | null;
+  };
   prize: {
     id: string;
     name: string;

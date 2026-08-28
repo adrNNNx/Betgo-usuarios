@@ -181,10 +181,11 @@ export function ResultScreen({
               <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
             )}
 
-            {/* Jackpot: la plata va directo al saldo, no hay nada que reclamar */}
+            {/* El pozo no se acredita al saldo: se coordina con administración */}
             {isJackpot && (
               <p className="px-6 py-4 text-center text-xs text-muted-foreground sm:text-sm">
-                Acreditado a tu saldo — ya podés usarlo para jugar
+                Coordiná el retiro con administración — el comprobante queda en
+                Mis Premios
               </p>
             )}
 

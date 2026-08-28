@@ -249,8 +249,9 @@ export function JackpotCta({ children, onClick, href }: { children: ReactNode; o
     boxShadow: "0 8px 26px oklch(0.78 0.15 85/.34), inset 0 1px 0 rgba(255,255,255,.4)",
   };
   const inner = <><IcPhone size={17} width={2.2} />{children}</>;
+  // El onClick va también en el <a>: abre WhatsApp Y avisa al backend.
   return href
-    ? <a href={href} target="_blank" rel="noreferrer" style={style}>{inner}</a>
+    ? <a href={href} target="_blank" rel="noreferrer" onClick={onClick} style={style}>{inner}</a>
     : <button type="button" onClick={onClick} style={style}>{inner}</button>;
 }
 
@@ -263,7 +264,7 @@ export function JackpotGhost({ icon, children, onClick, href, style }: {
     display: "flex", alignItems: "center", justifyContent: "center", gap: 9, cursor: "pointer", ...style,
   };
   return href
-    ? <a href={href} target="_blank" rel="noreferrer" style={s}>{icon}{children}</a>
+    ? <a href={href} target="_blank" rel="noreferrer" onClick={onClick} style={s}>{icon}{children}</a>
     : <button type="button" onClick={onClick} style={s}>{icon}{children}</button>;
 }
 

@@ -33,7 +33,7 @@ import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 import { useCopyCode } from "@/components/premios/useCopyCode";
 import { SlotMachine, PayoutTable, topMatch } from "@/components/slot-machine";
 import { PREMIOS_RETURN_KEY } from "@/lib/prize-claim";
-import { jackpotFolio } from "@/lib/jackpot";
+import { markJackpotContacted } from "@/services/jackpot-claim.service";
 import { LoadBalanceModal } from "@/components/LoadBalanceModal";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PrizesShowcase } from "@/components/PrizesShowcase";
@@ -52,18 +52,22 @@ import type { SlotSymbol } from "@/types/slot-machine-type";
 type GameScreen = "welcome" | "playing-free" | "result" | "playing-global";
 
 /**
- * Deriva de la tirada cuántas coincidencias hubo y con qué símbolo.
- * El backend no manda estos datos (ver TODO-BACKEND.md).
+ * Cuántas coincidencias hubo y con qué símbolo.
+ *
+ * El backend los manda en `play/pool` (`matchCount` / `winningSymbolId`). En
+ * free y paid todavía no vienen, así que ahí se derivan contando la tirada.
  */
-function resultMatch(
-  symbolIds: string[],
-  details: Array<{ id: string; name: string }>,
-) {
-  const { matchCount, symbol } = topMatch(symbolIds.map((id) => ({ id })));
-  return {
-    matchCount,
-    matchSymbolLabel: details.find((d) => d.id === symbol?.id)?.name,
-  };
+function resultMatch(result: PlayResultResponse) {
+  const derived =
+    result.matchCount == null || result.winningSymbolId == null
+      ? topMatch(result.symbols.map((id) => ({ id })))
+      : null;
+
+  const matchCount = result.matchCount ?? derived?.matchCount ?? 0;
+  const symbolId = result.winningSymbolId ?? derived?.symbol?.id;
+  const label = result.symbolDetails.find((d) => d.id === symbolId)?.name;
+
+  return matchCount && label ? `${matchCount} iguales de ${label}` : undefined;
 }
 
 const dateTimeFmt = new Intl.DateTimeFormat("es-PY", {
@@ -80,50 +84,39 @@ const dateFmt = new Intl.DateTimeFormat("es-PY", {
 });
 
 /** "12/08/2026 · 20:41" */
-function fmtPlayedAt(ms: number): string {
-  const p = dateTimeFmt.formatToParts(new Date(ms));
+function fmtPlayedAt(iso: string): string {
+  const p = dateTimeFmt.formatToParts(new Date(iso));
   const get = (t: string) => p.find((x) => x.type === t)?.value ?? "";
   return `${get("day")}/${get("month")}/${get("year")} · ${get("hour")}:${get("minute")}`;
 }
 
-/**
- * Traduce la respuesta del backend al outcome que entiende ResultadoScreen.
- *
- * `playedAt` es el reloj del cliente al momento de la jugada: el backend no
- * devuelve la fecha de la jugada (ver TODO-BACKEND.md).
- */
+/** Traduce la respuesta del backend al outcome que entiende ResultadoScreen. */
 function buildOutcome(
   result: PlayResultResponse,
   barName: string,
   mode: "free" | "pool",
-  playedAt: number,
+  onContact: (folio: string) => void,
 ): ResultadoOutcome {
-  const { matchCount, matchSymbolLabel } = resultMatch(
-    result.symbols,
-    result.symbolDetails,
-  );
-  const comboLabel =
-    matchCount && matchSymbolLabel
-      ? `${matchCount} iguales de ${matchSymbolLabel}`
-      : undefined;
+  const comboLabel = resultMatch(result);
   const prize = result.prize;
 
   // El pozo ganado llega como premio sintético con id 'jackpot', no por type.
-  if (prize?.id === "jackpot") {
+  // Sus datos de retiro vienen en `result.jackpot`.
+  if (prize?.id === "jackpot" && result.jackpot) {
+    const j = result.jackpot;
     return {
       kind: "jackpot",
       jackpot: {
-        amount: prize.value ?? 0,
-        // TODO(backend): folio propio, estado del retiro y fecha de la jugada.
-        // Hoy el folio se deriva del playId para que sea rastreable.
-        code: jackpotFolio(result.playId),
-        dateLabel: fmtPlayedAt(playedAt),
-        shortDateLabel: dateFmt.format(new Date(playedAt)),
+        amount: j.amount,
+        code: j.folio,
+        dateLabel: fmtPlayedAt(j.playedAt),
+        shortDateLabel: dateFmt.format(new Date(j.playedAt)),
         playId: `#${result.playId.slice(0, 8)}`,
         venueName: barName,
         comboLabel,
-        // status queda en "pending_contact" (default) hasta que el backend
-        // devuelva el estado real del retiro. contactHref: falta definir canal.
+        status: j.status,
+        contactHref: j.contactHref,
+        onContact: () => onContact(j.folio),
       },
     };
   }
@@ -213,8 +206,6 @@ export default function BarGamePage() {
     } | null;
   } | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
-  /** Reloj del cliente al cerrar la jugada: el backend no manda la fecha. */
-  const [playedAt, setPlayedAt] = useState(() => Date.now());
   const [showLoadBalance, setShowLoadBalance] = useState(false);
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [prizes, setPrizes] = useState<PrizeItem[]>([]);
@@ -294,7 +285,6 @@ export default function BarGamePage() {
 
     try {
       const result = await play("free", slug);
-      setPlayedAt(Date.now());
 
       // Mapear los symbolDetails del servidor a SlotSymbol[] para la animación
       const resultSymbols = mapServerResultToSlotSymbols(
@@ -331,7 +321,6 @@ export default function BarGamePage() {
 
     try {
       const result = await play("pool", slug);
-      setPlayedAt(Date.now());
 
       const resultSymbols = mapServerResultToSlotSymbols(
         result.symbolDetails,
@@ -430,6 +419,18 @@ export default function BarGamePage() {
     // Refrescar pozo y sesión
     loadPool();
   };
+
+  // ==================== HANDLER: CONTACTÓ POR EL POZO ====================
+  /**
+   * El link abre WhatsApp por su cuenta (es un <a> con href). Acá sólo avisamos
+   * al backend para que el comprobante pase a `in_review` y administración lo
+   * vea en su panel. Si falla, no se interrumpe nada: que el ganador pueda
+   * comunicarse importa más que el registro del estado, y el endpoint es
+   * idempotente, así que se puede reintentar.
+   */
+  const handleJackpotContact = useCallback((folio: string) => {
+    markJackpotContacted(folio).catch(() => {});
+  }, []);
 
   // ==================== HANDLER: COPIAR CÓDIGO ====================
   // Reusa el hook de Mis Premios: tiene fallback para http plano en el bar.
@@ -583,7 +584,12 @@ export default function BarGamePage() {
         return lastResult ? (
           <ResultadoScreen
             venue={{ name: bar.name, logoUrl: bar.logoUrl }}
-            outcome={buildOutcome(lastResult, bar.name, lastPlayMode, playedAt)}
+            outcome={buildOutcome(
+              lastResult,
+              bar.name,
+              lastPlayMode,
+              handleJackpotContact,
+            )}
             pool={{
               amount: pool?.currentAmount ?? 0,
               balance: user?.balance ?? 0,

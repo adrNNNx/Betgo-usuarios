@@ -30,8 +30,11 @@ export interface JackpotScreenProps {
   comboLabel?: string;
   /** pending_contact = recién ganado · in_review = ya contactó · paid = pagado. */
   status?: JackpotStatus;
-  /** Link directo (wa.me / tel:). Si lo pasás, el CTA es un <a>. */
-  contactHref?: string;
+  /**
+   * Link directo (wa.me / tel:). Si viene `null` el backend no tiene canal
+   * configurado y el botón de contacto no se muestra.
+   */
+  contactHref?: string | null;
   onContact?: () => void;
   onCopyCode?: (code: string) => void;
   pool: { amount: number; balance: number; costPerPlay: number };
@@ -76,7 +79,9 @@ export function JackpotScreen({
                   El pozo global <b style={{ color: jt.gold, fontWeight: 600 }}>no se acredita al saldo</b>. Contactá a
                   administración con este código para validar la jugada y coordinar el retiro.
                 </JackpotNotice>
-                <JackpotCta href={contactHref} onClick={onContact}>Contactar a administración</JackpotCta>
+                {contactHref && (
+                  <JackpotCta href={contactHref} onClick={onContact}>Contactar a administración</JackpotCta>
+                )}
                 <div style={{ marginTop: 9, textAlign: "center", fontSize: 11, lineHeight: 1.5, color: jt.muted }}>
                   Guardá el código <b style={{ color: jt.gold }}>{code}</b> — también quedó en Mis Premios
                 </div>
@@ -88,9 +93,11 @@ export function JackpotScreen({
                   Te van a escribir para coordinar el retiro. Si pasaron más de <b style={{ color: jt.gold, fontWeight: 600 }}>48 h</b>,
                   volvé a escribirnos con el mismo código.
                 </JackpotNotice>
-                <JackpotGhost href={contactHref} onClick={onContact} icon={<IcPhone />} style={{ marginTop: 12 }}>
-                  Volver a contactar
-                </JackpotGhost>
+                {contactHref && (
+                  <JackpotGhost href={contactHref} onClick={onContact} icon={<IcPhone />} style={{ marginTop: 12 }}>
+                    Volver a contactar
+                  </JackpotGhost>
+                )}
               </>
             ) : (
               <>
