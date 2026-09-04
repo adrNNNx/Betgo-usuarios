@@ -46,6 +46,13 @@ export interface BarSymbolResponse {
   minMatchToWin?: number;
   /** Nombre del premio que paga el símbolo (null si no tiene) */
   prizeName?: string | null;
+  /**
+   * Id y valor del premio del símbolo. El backend todavía no los expone
+   * (ver TODO-BACKEND.md): sin `prizeId` el riel de premios no muestra el
+   * mínimo de iguales, y sin `prizeValue` la tabla de pagos no muestra montos.
+   */
+  prizeId?: string | null;
+  prizeValue?: number | null;
 }
 
 /** Estados del retiro del pozo: pending_contact → in_review → paid. */

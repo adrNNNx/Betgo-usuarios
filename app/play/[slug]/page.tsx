@@ -17,6 +17,7 @@ import {
 } from "@/services/game.service";
 import {
   getGlobalPrizes,
+  getPrizesByBarAndGlobal,
   type PrizeItem,
 } from "@/services/prize.service";
 import { Loader2 } from "lucide-react";
@@ -31,13 +32,20 @@ import {
 } from "@/components/resultado";
 import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 import { useCopyCode } from "@/components/premios/useCopyCode";
-import { SlotMachine, PayoutTable, topMatch } from "@/components/slot-machine";
+import { SlotMachine, topMatch } from "@/components/slot-machine";
+import {
+  PoolBand,
+  FreePlayVenue,
+  BarPrizesRail,
+  PoolHero,
+  PayoutScreen,
+  screenAura,
+} from "@/components/juego";
+import { VenueChip } from "@/components/resultado";
 import { PREMIOS_RETURN_KEY } from "@/lib/prize-claim";
 import { markJackpotContacted } from "@/services/jackpot-claim.service";
 import { LoadBalanceModal } from "@/components/LoadBalanceModal";
 import { BannerCarousel } from "@/components/BannerCarousel";
-import { PrizesShowcase } from "@/components/PrizesShowcase";
-import { PoolPromoStrip } from "@/components/PoolPromoStrip";
 
 // Hooks
 import {
@@ -49,7 +57,13 @@ import {
 // Types
 import type { SlotSymbol } from "@/types/slot-machine-type";
 
-type GameScreen = "welcome" | "playing-free" | "result" | "playing-global";
+type GameScreen =
+  | "welcome"
+  | "playing-free"
+  | "playing-global"
+  | "payout-free"
+  | "payout-pool"
+  | "result";
 
 /**
  * Cuántas coincidencias hubo y con qué símbolo.
@@ -183,6 +197,10 @@ export default function BarGamePage() {
 
   const { copy: copyCode } = useCopyCode();
 
+  /** Carriles que exige el pozo: sale del símbolo jackpot, cae a 5 si no está. */
+  const jackpotMinMatch =
+    rawPoolSymbols.find((s) => s.isJackpot)?.minMatchToWin ?? 5;
+
   // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
   const [isScreenVisible, setIsScreenVisible] = useState(true);
@@ -209,6 +227,8 @@ export default function BarGamePage() {
   const [showLoadBalance, setShowLoadBalance] = useState(false);
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [prizes, setPrizes] = useState<PrizeItem[]>([]);
+  /** Premios propios del bar, para el riel de la pantalla gratuita. */
+  const [barPrizes, setBarPrizes] = useState<PrizeItem[]>([]);
 
   /**
    * Cambiar pantalla con transición suave.
@@ -269,6 +289,10 @@ export default function BarGamePage() {
           .catch(() => {});
         getGlobalPrizes()
           .then(setPrizes)
+          .catch(() => {});
+        // El endpoint trae globales + locales; el riel sólo quiere los del bar.
+        getPrizesByBarAndGlobal(loadedBar.id)
+          .then((all) => setBarPrizes(all.filter((p) => p.barId === loadedBar.id)))
           .catch(() => {});
       }
     };
@@ -535,23 +559,38 @@ export default function BarGamePage() {
 
       case "playing-free":
         return (
-          <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
-            <BannerCarousel banners={banners} className="mb-3 px-1" />
-
-            <PoolPromoStrip
-              prizes={prizes}
+          <div
+            className="flex min-h-screen flex-col items-center p-4 sm:p-6"
+            style={{ background: `${screenAura("free")}, oklch(0.2 0.05 160)` }}
+          >
+            {/* La única pieza dorada de esta pantalla: por contraste se lee
+                como "otro juego, más grande". */}
+            <PoolBand
               poolAmount={pool?.currentAmount ?? 0}
               costPerPlay={pool?.costPerPlay ?? 1000}
+              prizeCount={prizes.filter((p) => p.isActive).length}
               onPlayPool={handlePlayGlobalPot}
-              className="mt-2 mb-2 px-1"
+              className="mb-3"
+            />
+
+            <BannerCarousel banners={banners} className="mb-3 px-1" />
+
+            <FreePlayVenue
+              barName={bar.name}
+              barLogoUrl={bar.logoUrl}
+              remaining={freePlaysRemaining}
+              total={session?.playsLimit ?? bar.freePlaysPerDay}
+              className="mb-3"
+            />
+
+            <BarPrizesRail
+              prizes={barPrizes}
+              onSeeAll={() => transitionTo("payout-free")}
+              className="mb-4"
             />
 
             <SlotMachine
-              config={{
-                title: bar.name,
-                barLogoUrl: bar.logoUrl,
-                currency: "Gs.",
-              }}
+              config={{ currency: "Gs." }}
               symbols={symbols}
               usingCustomSymbols={usingCustomSymbols}
               freeSpinsRemaining={freePlaysRemaining}
@@ -562,22 +601,38 @@ export default function BarGamePage() {
               serverError={spinError}
             />
 
-            <PayoutTable symbols={rawBarSymbols} className="mt-4 px-1" />
-
-            {/* Botón volver */}
             <button
               onClick={handleBackToHome}
               className="mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               ← Volver
             </button>
-
-            {/* Decoraciones */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-              <div className="absolute top-20 left-10 w-32 h-32 bg-yellow-400/10 rounded-full blur-3xl shimmer" />
-              <div className="absolute bottom-20 right-10 w-40 h-40 bg-green-400/10 rounded-full blur-3xl shimmer" />
-            </div>
           </div>
+        );
+
+      case "payout-free":
+        return (
+          <PayoutScreen
+            mode="free"
+            symbols={rawBarSymbols}
+            barName={bar.name}
+            poolAmount={pool?.currentAmount ?? 0}
+            costPerPlay={pool?.costPerPlay ?? 1000}
+            onBack={() => transitionTo("playing-free")}
+            onPrimary={handlePlayGlobalPot}
+          />
+        );
+
+      case "payout-pool":
+        return (
+          <PayoutScreen
+            mode="pool"
+            symbols={rawPoolSymbols}
+            poolAmount={pool?.currentAmount ?? 0}
+            costPerPlay={pool?.costPerPlay ?? 1000}
+            onBack={() => transitionTo("playing-global")}
+            onPrimary={() => transitionTo("playing-global")}
+          />
         );
 
       case "result":
@@ -606,18 +661,25 @@ export default function BarGamePage() {
 
       case "playing-global":
         return (
-          <div className="min-h-screen casino-bg flex flex-col items-center justify-center p-4 sm:p-6">
+          <div
+            className="flex min-h-screen flex-col items-center p-4 sm:p-6"
+            style={{ background: `${screenAura("pool")}, oklch(0.2 0.05 160)` }}
+          >
             <BannerCarousel banners={banners} className="mb-3 px-1" />
 
-            <PrizesShowcase prizes={prizes} className="mb-4 px-1" />
+            <PoolHero
+              poolAmount={jackpotDisplayAmount}
+              prizes={prizes}
+              minMatchToWin={jackpotMinMatch}
+              className="mb-3"
+            />
+
+            <div className="mb-3">
+              <VenueChip name={bar.name} logoUrl={bar.logoUrl} />
+            </div>
 
             <SlotMachine
-              config={{
-                title: bar.name,
-                barLogoUrl: bar.logoUrl,
-                currency: "Gs.",
-                jackpotAmount: jackpotDisplayAmount,
-              }}
+              config={{ currency: "Gs." }}
               mode="pool"
               symbols={poolSymbols}
               usingCustomSymbols={usingPoolSymbols}
@@ -631,25 +693,22 @@ export default function BarGamePage() {
               serverError={spinError}
             />
 
-            <PayoutTable
-              symbols={rawPoolSymbols}
-              showJackpot
-              className="mt-4 px-1"
-            />
+            <button
+              onClick={() => transitionTo("payout-pool")}
+              className="mt-4 w-full max-w-2xl rounded-xl border border-border/40 bg-card/40 px-4 py-3 text-sm font-semibold text-primary backdrop-blur-sm transition-colors hover:bg-card/60"
+            >
+              ¿Cómo se gana?{" "}
+              <span className="font-normal text-muted-foreground">
+                Ver tabla de pagos →
+              </span>
+            </button>
 
-            {/* Botón volver */}
             <button
               onClick={handleBackToHome}
               className="mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               ← Volver al inicio
             </button>
-
-            {/* Decoraciones */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-              <div className="absolute top-20 left-10 w-32 h-32 bg-yellow-400/10 rounded-full blur-3xl shimmer" />
-              <div className="absolute bottom-20 right-10 w-40 h-40 bg-green-400/10 rounded-full blur-3xl shimmer" />
-            </div>
           </div>
         );
 

@@ -4,11 +4,11 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 
 import { useSlotDimensions } from "@/hooks/use-slot-dimensions";
-import { Button } from "@/components/ui/button";
 import { Loader2, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/game-logic";
 import { cn } from "@/lib/utils";
 import { cdn } from "@/lib/cdn";
+import { accentFor } from "@/components/juego/juego-theme";
 
 import { getRandomSymbol, checkWin, topMatch } from "./symbols";
 import {
@@ -16,7 +16,6 @@ import {
   SpinState,
   SlotSymbol,
 } from "@/types/slot-machine-type";
-import { JackpotDisplay } from "./JackpotDisplay";
 import { SlotReel } from "./SlotReel";
 
 // ==================== TIPOS ====================
@@ -64,7 +63,6 @@ export function SlotMachine({
   config = {},
   symbols,
   symbolsLoading = false,
-  usingCustomSymbols = false,
   mode = "free",
   freeSpinsRemaining,
   userBalance = 0,
@@ -75,12 +73,10 @@ export function SlotMachine({
   onAnimationComplete,
   serverError = null,
 }: SlotMachineProps) {
+  // title / barLogoUrl / jackpotAmount ya no se usan acá: el encabezado y el
+  // monto del pozo viven en FreePlayVenue y PoolHero, arriba de la máquina.
   const {
     reelCount = 5,
-    title = "BetGO",
-    subtitle = "",
-    barLogoUrl = null,
-    jackpotAmount = 0,
     currency = "Gs.",
     spinDuration = 900,
     canSpin = true,
@@ -227,6 +223,11 @@ export function SlotMachine({
   }, [handleSpin]);
 
   const isSpinning = spinState === "spinning";
+  // El dorado pertenece al pozo global. En jugadas gratis la máquina va en
+  // esmeralda, para que se lea de un vistazo por qué se está jugando.
+  const AC = accentFor(isPoolMode ? "pool" : "free");
+  /** El acento con transparencia, para los glows. */
+  const glow = (a: number) => `color-mix(in oklch, ${AC.base} ${a * 100}%, transparent)`;
   // El pozo se distingue por el id sintético, NO por prize.type: un premio
   // físico común también puede tener type "jackpot" (es del catálogo).
   const isJackpotWin = serverResultInfo?.prize?.id === "jackpot";
@@ -255,75 +256,11 @@ export function SlotMachine({
     <>
       <div className="flex w-full max-w-2xl flex-col items-center gap-3 px-3 sm:gap-6 sm:px-0">
 
-        {/* ===== HEADER AREA ===== */}
-        {isPoolMode ? (
-          /* --- POOL MODE HEADER --- */
-          <div className="flex flex-col items-center gap-3 w-full animate-fade-in-up">
-            {/* Pool badge with jackpot amount */}
-            <div
-              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 sm:px-5 sm:py-2"
-              style={{
-                background: "linear-gradient(135deg, oklch(0.72 0.15 85 / 0.15), oklch(0.72 0.15 85 / 0.05))",
-                border: "1px solid oklch(0.72 0.15 85 / 0.3)",
-              }}
-            >
-              <Zap className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-primary">
-                Pozo Global
-              </span>
-              {jackpotAmount > 0 && (
-                <>
-                  <span className="text-primary/30 text-xs">·</span>
-                  <span className="text-sm sm:text-base font-black tabular-nums text-primary">
-                    {formatCurrency(jackpotAmount)}
-                  </span>
-                </>
-              )}
-              {/* Live dot */}
-              <span className="relative flex h-2 w-2 ml-1">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-            </div>
-
-            {/* Bar name (smaller in pool mode) */}
-            {barLogoUrl ? (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-primary/20">
-                  <img src={cdn(barLogoUrl, 96)} alt={title} className="w-full h-full object-cover" />
-                </div>
-                <span className="text-sm text-muted-foreground font-medium">{title}</span>
-              </div>
-            ) : (
-              <span className="text-sm text-muted-foreground font-medium">{title}</span>
-            )}
-          </div>
-        ) : (
-          /* --- FREE MODE HEADER (compacto, igual que pool) --- */
-          <div className="flex flex-col items-center gap-2 animate-fade-in-up">
-            {barLogoUrl ? (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-primary/20">
-                  <img src={cdn(barLogoUrl, 96)} alt={title} className="w-full h-full object-cover" />
-                </div>
-                <span className="text-sm text-muted-foreground font-medium">{title}</span>
-              </div>
-            ) : (
-              <span className="text-sm text-muted-foreground font-medium">{title}</span>
-            )}
-          </div>
-        )}
-
-        {/* Jackpot Display — solo en free mode, en pool ya está en el badge */}
-        {jackpotAmount > 0 && !isPoolMode && (
-          <div className="animate-fade-in-up animation-delay-100">
-            <JackpotDisplay
-              amount={jackpotAmount}
-              currency={currency}
-              isAnimating={showWin}
-            />
-          </div>
-        )}
+        {/*
+          El encabezado salió de acá: en free lo muestra FreePlayVenue y en pool
+          PoolHero, ambos arriba de la máquina. El monto del pozo tampoco vive
+          más adentro — duplicaba lo que ya dice PoolHero / PoolBand.
+        */}
 
         {/* ===== MACHINE BODY (identical for both modes) ===== */}
         <div className="relative w-full animate-fade-in-up animation-delay-200">
@@ -331,11 +268,10 @@ export function SlotMachine({
           <div
             className="absolute top-0 left-1/2 z-30 h-2 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-3 sm:w-24 transition-all duration-300"
             style={{
-              background:
-                "linear-gradient(to bottom, oklch(0.85 0.17 85), oklch(0.65 0.15 70))",
+              background: `linear-gradient(to bottom, ${AC.bright}, ${AC.deep})`,
               boxShadow: isSpinning
-                ? "0 2px 20px oklch(0.72 0.15 85 / 0.6)"
-                : "0 2px 10px oklch(0.72 0.15 85 / 0.4)",
+                ? `0 2px 20px ${glow(0.6)}`
+                : `0 2px 10px ${glow(0.4)}`,
             }}
           />
 
@@ -343,12 +279,12 @@ export function SlotMachine({
           <div
             className="relative overflow-hidden rounded-xl border-2 p-0.5 sm:rounded-2xl sm:p-1 transition-shadow duration-500"
             style={{
-              borderColor: "oklch(0.55 0.12 85)",
+              borderColor: `color-mix(in oklch, ${AC.base} 55%, oklch(0.3 0.03 160))`,
               background:
                 "linear-gradient(180deg, oklch(0.28 0.04 160), oklch(0.22 0.04 160))",
               boxShadow: isSpinning
-                ? "0 0 60px oklch(0.72 0.15 85 / 0.15), inset 0 2px 0 oklch(1 0 0 / 0.03), 0 20px 50px oklch(0 0 0 / 0.5)"
-                : "0 0 40px oklch(0.72 0.15 85 / 0.08), inset 0 2px 0 oklch(1 0 0 / 0.03), 0 20px 50px oklch(0 0 0 / 0.5)",
+                ? `0 0 60px ${glow(0.15)}, inset 0 2px 0 oklch(1 0 0 / 0.03), 0 20px 50px oklch(0 0 0 / 0.5)`
+                : `0 0 40px ${glow(0.08)}, inset 0 2px 0 oklch(1 0 0 / 0.03), 0 20px 50px oklch(0 0 0 / 0.5)`,
             }}
           >
             <div
@@ -366,12 +302,12 @@ export function SlotMachine({
                   background: showWin
                     ? "oklch(0.7 0.25 30)"
                     : isSpinning
-                      ? "oklch(0.72 0.15 85)"
+                      ? AC.base
                       : "oklch(0.4 0.1 30)",
                   boxShadow: showWin
                     ? "0 0 12px oklch(0.7 0.25 30)"
                     : isSpinning
-                      ? "0 0 10px oklch(0.72 0.15 85 / 0.6)"
+                      ? `0 0 10px ${glow(0.6)}`
                       : "none",
                 }}
               />
@@ -413,12 +349,12 @@ export function SlotMachine({
                   background: showWin
                     ? "oklch(0.7 0.25 30)"
                     : isSpinning
-                      ? "oklch(0.72 0.15 85)"
+                      ? AC.base
                       : "oklch(0.4 0.1 30)",
                   boxShadow: showWin
                     ? "0 0 12px oklch(0.7 0.25 30)"
                     : isSpinning
-                      ? "0 0 10px oklch(0.72 0.15 85 / 0.6)"
+                      ? `0 0 10px ${glow(0.6)}`
                       : "none",
                 }}
               />
@@ -429,11 +365,10 @@ export function SlotMachine({
           <div
             className="absolute bottom-0 left-1/2 z-30 h-2 w-16 -translate-x-1/2 translate-y-1/2 rounded-full sm:h-3 sm:w-24 transition-all duration-300"
             style={{
-              background:
-                "linear-gradient(to top, oklch(0.85 0.17 85), oklch(0.65 0.15 70))",
+              background: `linear-gradient(to top, ${AC.bright}, ${AC.deep})`,
               boxShadow: isSpinning
-                ? "0 -2px 20px oklch(0.72 0.15 85 / 0.6)"
-                : "0 -2px 10px oklch(0.72 0.15 85 / 0.4)",
+                ? `0 -2px 20px ${glow(0.6)}`
+                : `0 -2px 10px ${glow(0.4)}`,
             }}
           />
         </div>
@@ -469,37 +404,32 @@ export function SlotMachine({
           </div>
         </div>
 
-        {/* ===== SPIN BUTTON ===== */}
-        {isPoolMode ? (
-          /* --- POOL BUTTON --- */
-          <button
-            onClick={handleSpin}
-            disabled={isDisabled}
-            className={cn(
-              "group relative mt-1 w-full max-w-xs overflow-hidden rounded-xl px-6 py-3.5 sm:mt-2 sm:py-4 text-sm sm:text-base font-bold transition-all duration-300 active:scale-[0.98] animate-fade-in-up animation-delay-300",
-              !isDisabled ? "shadow-lg hover:shadow-xl" : "opacity-50 cursor-not-allowed",
-            )}
-            style={{
-              background: !isDisabled
-                ? "linear-gradient(135deg, oklch(0.72 0.15 85), oklch(0.68 0.17 70))"
-                : "oklch(0.32 0.03 160)",
-              color: !isDisabled
-                ? "oklch(0.2 0.05 160)"
-                : "oklch(0.55 0.01 160)",
-              boxShadow: !isDisabled
-                ? "0 4px 16px oklch(0.72 0.15 85 / 0.25)"
-                : "none",
-            }}
-          >
-            <span className="relative z-10 flex items-center justify-center gap-2">
-              {isSpinning ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="uppercase tracking-wider">Girando...</span>
-                </>
-              ) : spinState === "won" ? (
-                <span className="uppercase tracking-wider">¡Ganaste!</span>
-              ) : !canAfford ? (
+        {/* ===== SPIN BUTTON — mismo botón en los dos modos, distinto acento ===== */}
+        <button
+          onClick={handleSpin}
+          disabled={isDisabled}
+          className={cn(
+            "group relative mt-1 w-full max-w-xs overflow-hidden rounded-xl px-6 py-3.5 sm:mt-2 sm:py-4 text-sm sm:text-base font-bold transition-all duration-300 active:scale-[0.98] animate-fade-in-up animation-delay-300",
+            !isDisabled ? "shadow-lg hover:shadow-xl" : "opacity-50 cursor-not-allowed",
+          )}
+          style={{
+            background: !isDisabled
+              ? `linear-gradient(135deg, ${AC.bright}, ${AC.deep})`
+              : "oklch(0.32 0.03 160)",
+            color: !isDisabled ? AC.fg : "oklch(0.55 0.01 160)",
+            boxShadow: !isDisabled ? `0 4px 16px ${glow(0.25)}` : "none",
+          }}
+        >
+          <span className="relative z-10 flex items-center justify-center gap-2">
+            {isSpinning ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="uppercase tracking-wider">Girando...</span>
+              </>
+            ) : spinState === "won" ? (
+              <span className="uppercase tracking-wider">¡Ganaste!</span>
+            ) : isPoolMode ? (
+              !canAfford ? (
                 <span className="uppercase tracking-wider">Saldo insuficiente</span>
               ) : (
                 <>
@@ -508,54 +438,29 @@ export function SlotMachine({
                     Jugar • {formatCurrency(costPerPlay)}
                   </span>
                 </>
-              )}
-            </span>
-            {!isDisabled && (
-              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            )}
-          </button>
-        ) : (
-          /* --- FREE BUTTON (original) --- */
-          <Button
-            onClick={handleSpin}
-            disabled={isDisabled}
-            size="lg"
-            className="mt-1 w-full max-w-xs uppercase font-black tracking-wider sm:mt-2 sm:w-auto sm:px-12 sm:py-6 text-base sm:text-lg relative overflow-hidden group animate-fade-in-up animation-delay-300"
-          >
-            {isSpinning ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Girando...
-              </span>
-            ) : spinState === "won" ? (
-              "¡Ganaste!"
+              )
             ) : freeSpinsRemaining <= 0 ? (
-              "Sin jugadas"
+              <span className="uppercase tracking-wider">Sin jugadas</span>
             ) : (
-              "Jugar"
+              <span className="uppercase tracking-wider">Jugar gratis</span>
             )}
-            {!isSpinning && freeSpinsRemaining > 0 && (
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer pointer-events-none" />
-            )}
-          </Button>
-        )}
-
-        {/* ===== INFO BAR ===== */}
-        <div className="flex items-center gap-4 animate-fade-in-up animation-delay-400">
-          {!isPoolMode && (
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Jugadas restantes:{" "}
-              <span className="font-bold text-primary">{freeSpinsRemaining}</span>
-            </p>
+          </span>
+          {!isDisabled && (
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
           )}
-          <p className="hidden text-xs sm:block text-muted-foreground/60">
-            Presiona{" "}
-            <kbd className="rounded border border-border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
-              Espacio
-            </kbd>{" "}
-            para girar
-          </p>
-        </div>
+        </button>
+
+        {/*
+          El contador de jugadas restantes salió de acá: ya lo dicen las fichas
+          de FreePlayVenue. Repetirlo debajo del botón era ruido.
+        */}
+        <p className="hidden text-xs sm:block text-muted-foreground/60 animate-fade-in-up animation-delay-400">
+          Presiona{" "}
+          <kbd className="rounded border border-border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+            Espacio
+          </kbd>{" "}
+          para girar
+        </p>
       </div>
 
       {/* ===== WIN OVERLAY (identical for both modes) ===== */}

@@ -108,6 +108,31 @@
   }
 }
 
+/* ==================== PANTALLAS DE JUEGO ==================== */
+/* Van acá y no en <style jsx> porque styled-jsx renombra los @keyframes al
+   scopearlos, y estos se referencian desde atributos style inline. */
+
+@keyframes pool-sheen {
+  0% {
+    transform: translateX(-70%);
+  }
+  60%,
+  100% {
+    transform: translateX(70%);
+  }
+}
+
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ==================== BASE STYLES ==================== */
 
 @layer base {
@@ -149,6 +174,18 @@
 
   .animate-shimmer {
     animation: shimmer 2.5s infinite;
+  }
+
+  .animate-pool-sheen {
+    animation: pool-sheen 3.6s ease-in-out infinite;
+  }
+
+  .animate-hero-fade {
+    animation: hero-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-hero-marquee {
+    animation: marquee var(--marquee-duration, 24s) linear infinite;
   }
 
   .animate-float {

@@ -9,7 +9,7 @@ import { effectiveStatus, formatShortDate, sortByRecency } from "@/lib/prize-cla
 
 /**
  * Historial en un `<details>` nativo, cerrado por defecto.
- * Mismo precedente que `components/slot-machine/PayoutTable.tsx`: si la etiqueta
+ * Si la etiqueta
  * nativa alcanza, no se monta un Accordion. Cerrado y en gris para que no le
  * compita a los pendientes, pero a un toque de distancia.
  */
