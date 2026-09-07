@@ -44,15 +44,14 @@ export interface BarSymbolResponse {
    * Opcional por compatibilidad: sin este campo la tabla de pagos no se muestra.
    */
   minMatchToWin?: number;
-  /** Nombre del premio que paga el símbolo (null si no tiene) */
-  prizeName?: string | null;
   /**
-   * Id y valor del premio del símbolo. El backend todavía no los expone
-   * (ver TODO-BACKEND.md): sin `prizeId` el riel de premios no muestra el
-   * mínimo de iguales, y sin `prizeValue` la tabla de pagos no muestra montos.
+   * Premio que paga el símbolo. Los tres son `null` cuando no tiene —
+   * incluidos los símbolos de pozo (`isJackpot`), que por invariante del
+   * backend nunca tienen premio propio.
    */
-  prizeId?: string | null;
-  prizeValue?: number | null;
+  prizeName: string | null;
+  prizeId: string | null;
+  prizeValue: number | null;
 }
 
 /** Estados del retiro del pozo: pending_contact → in_review → paid. */

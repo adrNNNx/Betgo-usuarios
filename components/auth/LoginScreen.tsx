@@ -123,7 +123,6 @@ export function LoginScreen({
             <button
               type="button"
               className="text-xs text-primary/80 hover:text-primary font-sans transition-colors underline underline-offset-2"
-              onClick={() => alert("Función por implementar")}
             >
               Olvidaste tu contraseña?
             </button>

@@ -46,6 +46,9 @@ interface SlotMachineProps {
   serverResults?: SlotSymbol[] | null;
   serverResultInfo?: {
     isWinner: boolean;
+    /** Combo que contó el motor. Sin esto se deriva de los carriles. */
+    matchCount?: number;
+    winningSymbolId?: string | null;
     prize?: {
       /** 'jackpot' = pozo global ganado. Ver ResultScreen / TODO-BACKEND.md */
       id: string;
@@ -170,9 +173,15 @@ export function SlotMachine({
   useEffect(() => {
     if (results.length === reelCount && results.length > 0) {
       if (serverResultInfo) {
-        // El servidor no manda matchCount ni el símbolo ganador: se derivan
-        // contando la tirada. `isWinner` sigue siendo la autoridad.
-        const { matchCount, symbol } = topMatch(results);
+        // El combo lo cuenta el motor; acá sólo se busca el símbolo en los
+        // carriles para poder dibujarlo. `isWinner` es la autoridad: puede
+        // haber 5 iguales de un símbolo sin premio y no pagar nada.
+        const counted = topMatch(results);
+        const matchCount = serverResultInfo.matchCount ?? counted.matchCount;
+        const symbol = serverResultInfo.winningSymbolId
+          ? (results.find((r) => r.id === serverResultInfo.winningSymbolId) ??
+            counted.symbol)
+          : counted.symbol;
         setWinInfo({
           isWin: serverResultInfo.isWinner,
           matchCount,

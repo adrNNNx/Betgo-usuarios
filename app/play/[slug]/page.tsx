@@ -32,7 +32,7 @@ import {
 } from "@/components/resultado";
 import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 import { useCopyCode } from "@/components/premios/useCopyCode";
-import { SlotMachine, topMatch } from "@/components/slot-machine";
+import { SlotMachine } from "@/components/slot-machine";
 import {
   PoolBand,
   FreePlayVenue,
@@ -66,22 +66,16 @@ type GameScreen =
   | "result";
 
 /**
- * Cuántas coincidencias hubo y con qué símbolo.
+ * "5 iguales de Trébol" — el combo que salió, tal como lo cuenta el motor.
  *
- * El backend los manda en `play/pool` (`matchCount` / `winningSymbolId`). En
- * free y paid todavía no vienen, así que ahí se derivan contando la tirada.
+ * Sólo describe la tirada: puede haber 5 iguales de un símbolo sin premio y
+ * `isWinner: false`. Quién decide si se celebra es `isWinner`, no esto.
  */
-function resultMatch(result: PlayResultResponse) {
-  const derived =
-    result.matchCount == null || result.winningSymbolId == null
-      ? topMatch(result.symbols.map((id) => ({ id })))
-      : null;
-
-  const matchCount = result.matchCount ?? derived?.matchCount ?? 0;
-  const symbolId = result.winningSymbolId ?? derived?.symbol?.id;
-  const label = result.symbolDetails.find((d) => d.id === symbolId)?.name;
-
-  return matchCount && label ? `${matchCount} iguales de ${label}` : undefined;
+function comboLabelOf(result: PlayResultResponse) {
+  const { matchCount, winningSymbolId } = result;
+  if (!matchCount || !winningSymbolId) return undefined;
+  const label = result.symbolDetails.find((d) => d.id === winningSymbolId)?.name;
+  return label ? `${matchCount} iguales de ${label}` : undefined;
 }
 
 const dateTimeFmt = new Intl.DateTimeFormat("es-PY", {
@@ -111,7 +105,7 @@ function buildOutcome(
   mode: "free" | "pool",
   onContact: (folio: string) => void,
 ): ResultadoOutcome {
-  const comboLabel = resultMatch(result);
+  const comboLabel = comboLabelOf(result);
   const prize = result.prize;
 
   // El pozo ganado llega como premio sintético con id 'jackpot', no por type.
@@ -201,6 +195,16 @@ export default function BarGamePage() {
   const jackpotMinMatch =
     rawPoolSymbols.find((s) => s.isJackpot)?.minMatchToWin ?? 5;
 
+  /**
+   * Cuántos iguales pide cada premio, para el badge del riel.
+   * Los símbolos de pozo quedan afuera solos: tienen `prizeId: null`.
+   */
+  const minMatchByPrizeId = Object.fromEntries(
+    rawBarSymbols
+      .filter((s) => s.prizeId)
+      .map((s) => [s.prizeId as string, s.minMatchToWin ?? 5]),
+  );
+
   // Estado local de la UI
   const [currentScreen, setCurrentScreen] = useState<GameScreen>("welcome");
   const [isScreenVisible, setIsScreenVisible] = useState(true);
@@ -215,6 +219,8 @@ export default function BarGamePage() {
   const [serverResults, setServerResults] = useState<SlotSymbol[] | null>(null);
   const [serverResultInfo, setServerResultInfo] = useState<{
     isWinner: boolean;
+    matchCount?: number;
+    winningSymbolId?: string | null;
     prize?: {
       id: string;
       name: string;
@@ -318,6 +324,8 @@ export default function BarGamePage() {
       setServerResults(resultSymbols);
       setServerResultInfo({
         isWinner: result.isWinner,
+        matchCount: result.matchCount,
+        winningSymbolId: result.winningSymbolId,
         prize: result.prize
           ? {
               id: result.prize.id,
@@ -353,6 +361,8 @@ export default function BarGamePage() {
       setServerResults(resultSymbols);
       setServerResultInfo({
         isWinner: result.isWinner,
+        matchCount: result.matchCount,
+        winningSymbolId: result.winningSymbolId,
         prize: result.prize
           ? {
               id: result.prize.id,
@@ -585,6 +595,7 @@ export default function BarGamePage() {
 
             <BarPrizesRail
               prizes={barPrizes}
+              minMatchByPrizeId={minMatchByPrizeId}
               onSeeAll={() => transitionTo("payout-free")}
               className="mb-4"
             />

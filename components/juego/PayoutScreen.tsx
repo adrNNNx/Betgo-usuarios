@@ -23,7 +23,15 @@ const AC = {
 } as const;
 
 /** Diagrama de los 5 carriles con N encendidos. */
-function Lanes({ n, mode, size = 1 }: { n: number; mode: Mode; size?: number }) {
+function Lanes({
+  n,
+  mode,
+  size = 1,
+}: {
+  n: number;
+  mode: Mode;
+  size?: number;
+}) {
   return (
     <div className="flex" style={{ gap: 3 * size }}>
       {Array.from({ length: 5 }).map((_, i) => (
@@ -44,7 +52,13 @@ function Lanes({ n, mode, size = 1 }: { n: number; mode: Mode; size?: number }) 
   );
 }
 
-function SymbolRow({ symbol, mode }: { symbol: BarSymbolResponse; mode: Mode }) {
+function SymbolRow({
+  symbol,
+  mode,
+}: {
+  symbol: BarSymbolResponse;
+  mode: Mode;
+}) {
   return (
     <div
       className="flex items-center gap-[11px] rounded-xl px-[11px] py-2.5"
@@ -73,7 +87,9 @@ function SymbolRow({ symbol, mode }: { symbol: BarSymbolResponse; mode: Mode }) 
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="font-display text-[13px] font-bold leading-tight">{symbol.name}</div>
+        <div className="font-display text-[13px] font-bold leading-tight">
+          {symbol.name}
+        </div>
         {symbol.prizeName && (
           <div className="mt-0.5 truncate text-[10.5px] text-muted-foreground">
             {symbol.prizeName}
@@ -152,7 +168,10 @@ export function PayoutScreen({
 
   return (
     <div
-      className={cn("flex min-h-screen flex-col items-center p-4 sm:p-6", className)}
+      className={cn(
+        "flex min-h-screen flex-col items-center p-4 sm:p-6",
+        className,
+      )}
       style={{ background: `${ac.aura}, oklch(0.2 0.05 160)` }}
     >
       <div className="flex w-full max-w-2xl flex-col gap-[13px]">
@@ -233,9 +252,12 @@ export function PayoutScreen({
               <span className="text-[10.5px] text-muted-foreground">
                 Exige los{" "}
                 <b className="font-semibold" style={{ color: ac.label }}>
-                  {jackpot?.minMatchToWin ?? 5} carriles
+                  5 carriles{" "}
                 </b>
-                {jackpot ? ` con ${jackpot.name}` : null}
+                para poder ganar, de un símbolo{" "}
+                <b className="font-semibold" style={{ color: ac.label }}>
+                  sin premios.{" "}
+                </b>
               </span>
             </div>
           </div>
@@ -251,12 +273,17 @@ export function PayoutScreen({
           }}
         >
           {mode === "pool" ? (
-            <>Los demás premios globales pagan desde su propio mínimo, en la línea del medio.</>
+            <>
+              Los demás premios globales pagan desde su propio mínimo, en la
+              línea del medio.
+            </>
           ) : (
             <>
               Ganás cuando caen{" "}
-              <b className="font-semibold text-foreground">varios símbolos iguales</b> en la
-              línea del medio. Cada premio pide su propio mínimo.
+              <b className="font-semibold text-foreground">
+                varios símbolos iguales
+              </b>{" "}
+              en la línea del medio. Cada premio pide su propio mínimo.
             </>
           )}
 
@@ -272,7 +299,9 @@ export function PayoutScreen({
                     background: on
                       ? `color-mix(in oklch, ${ac.key} 12%, oklch(0.23 0.04 160))`
                       : "oklch(0.23 0.04 160)",
-                    outline: on ? `1px solid color-mix(in oklch, ${ac.key} 60%, transparent)` : undefined,
+                    outline: on
+                      ? `1px solid color-mix(in oklch, ${ac.key} 60%, transparent)`
+                      : undefined,
                     opacity: on ? 1 : 0.3,
                     filter: on ? undefined : "grayscale(0.6)",
                     boxShadow: "inset 0 1px 5px oklch(0 0 0 / 0.45)",
@@ -339,7 +368,8 @@ export function PayoutScreen({
             onClick={onPrimary}
             className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[14px] font-display text-[16px] font-extrabold uppercase tracking-[0.04em]"
             style={{
-              background: "linear-gradient(135deg, oklch(0.78 0.16 88), oklch(0.68 0.15 80))",
+              background:
+                "linear-gradient(135deg, oklch(0.78 0.16 88), oklch(0.68 0.15 80))",
               color: "oklch(0.2 0.05 160)",
               boxShadow: "0 6px 22px oklch(0.72 0.15 85 / 0.32)",
             }}
@@ -348,7 +378,10 @@ export function PayoutScreen({
           </button>
         )}
 
-        <button onClick={onBack} className="self-center text-[12px] text-muted-foreground">
+        <button
+          onClick={onBack}
+          className="self-center text-[12px] text-muted-foreground"
+        >
           ← Volver a {mode === "pool" ? "la máquina" : "jugar"}
         </button>
       </div>
@@ -407,13 +440,16 @@ function PoolBandInline({
       <span
         className="relative flex h-[34px] flex-none items-center gap-1.5 rounded-[10px] px-[13px] font-display text-[11.5px] font-extrabold uppercase tracking-[0.04em]"
         style={{
-          background: "linear-gradient(135deg, oklch(0.76 0.16 88), oklch(0.68 0.15 82))",
+          background:
+            "linear-gradient(135deg, oklch(0.76 0.16 88), oklch(0.68 0.15 82))",
           color: "oklch(0.2 0.05 160)",
           boxShadow: "0 4px 14px oklch(0.72 0.15 85 / 0.28)",
         }}
       >
         Ver
-        <span className="transition-transform duration-300 group-hover:translate-x-0.5">→</span>
+        <span className="transition-transform duration-300 group-hover:translate-x-0.5">
+          →
+        </span>
       </span>
     </button>
   );
